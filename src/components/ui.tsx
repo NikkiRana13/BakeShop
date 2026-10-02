@@ -9,11 +9,56 @@ import {
   Text,
   TextInput,
   TextInputProps,
+  useWindowDimensions,
   View,
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radius } from '../theme';
+
+/** Large-screen layout: the app targets computers and iPads. */
+export function useLayout() {
+  const { width } = useWindowDimensions();
+  return {
+    wide: width >= 768,
+    columns: width >= 1180 ? 3 : width >= 768 ? 2 : 1,
+  };
+}
+
+/** Lays children out in equal-width columns that wrap. */
+export function Grid({
+  children,
+  columns,
+}: {
+  children: React.ReactNode;
+  columns?: number;
+}) {
+  const layout = useLayout();
+  const cols = columns ?? layout.columns;
+  return (
+    <View style={styles.grid}>
+      {React.Children.toArray(children).map((child, i) => (
+        <View key={i} style={[styles.gridItem, { width: `${100 / cols}%` }]}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/** Side-by-side on large screens, stacked on narrow ones. */
+export function Columns({ children }: { children: React.ReactNode }) {
+  const { wide } = useLayout();
+  return (
+    <View style={wide ? styles.columns : styles.stack}>
+      {React.Children.toArray(children).map((child, i) => (
+        <View key={i} style={wide ? styles.column : styles.stack}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export function Screen({
   title,
@@ -25,12 +70,19 @@ export function Screen({
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const { wide } = useLayout();
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.screenContent, { paddingTop: insets.top + 12 }]}
+      contentContainerStyle={[
+        styles.screenContent,
+        { paddingTop: insets.top + 12 },
+        wide && styles.screenContentWide,
+      ]}
       keyboardShouldPersistTaps="handled">
-      <Text style={styles.title} accessibilityRole="header">
+      <Text
+        style={[styles.title, wide && styles.titleWide]}
+        accessibilityRole="header">
         {title}
       </Text>
       {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
@@ -346,6 +398,7 @@ export function Sheet({
   children: React.ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const { wide } = useLayout();
   return (
     <Modal
       visible={visible}
@@ -355,7 +408,12 @@ export function Sheet({
       <KeyboardAvoidingView
         style={styles.sheet}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.sheetHeader, Platform.OS === 'android' && { paddingTop: insets.top + 12 }]}>
+        <View
+          style={[
+            styles.sheetHeader,
+            Platform.OS === 'android' && { paddingTop: insets.top + 12 },
+            wide && styles.sheetHeaderWide,
+          ]}>
           <Text style={styles.sheetTitle} accessibilityRole="header">
             {title}
           </Text>
@@ -368,7 +426,11 @@ export function Sheet({
           </Pressable>
         </View>
         <ScrollView
-          contentContainerStyle={[styles.sheetBody, { paddingBottom: insets.bottom + 40 }]}
+          contentContainerStyle={[
+            styles.sheetBody,
+            { paddingBottom: insets.bottom + 40 },
+            wide && styles.sheetBodyWide,
+          ]}
           keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
@@ -402,7 +464,21 @@ export function Notice({
 export const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   screenContent: { padding: 16, paddingBottom: 40, gap: 12 },
+  screenContentWide: {
+    width: '100%',
+    maxWidth: 1240,
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+    paddingTop: 28,
+    gap: 16,
+  },
   title: { fontSize: font.title, fontWeight: '800', color: colors.text },
+  titleWide: { fontSize: 34 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', margin: -6 },
+  gridItem: { padding: 6 },
+  columns: { flexDirection: 'row', gap: 20, alignItems: 'flex-start' },
+  column: { flex: 1, minWidth: 0, gap: 12 },
+  stack: { gap: 12 },
   subtitle: { fontSize: font.body, color: colors.muted, marginTop: -6 },
   section: {
     fontSize: font.heading,
@@ -538,5 +614,7 @@ export const styles = StyleSheet.create({
   },
   closeText: { fontSize: font.body, fontWeight: '700', color: colors.accent },
   sheetBody: { padding: 16, gap: 14 },
+  sheetBodyWide: { width: '100%', maxWidth: 760, alignSelf: 'center', padding: 28 },
+  sheetHeaderWide: { paddingHorizontal: 32, paddingVertical: 20 },
   notice: { borderRadius: radius.sm, borderWidth: 1, padding: 12 },
 });

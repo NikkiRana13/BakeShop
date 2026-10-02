@@ -18,6 +18,8 @@ import {
   SectionTitle,
   Sheet,
   Stat,
+  useLayout,
+  Grid,
 } from '../components/ui';
 import { finishedStock, ingredientStatus } from '../logic/selectors';
 import { useNav } from '../navigation';
@@ -97,6 +99,8 @@ export function InventoryScreen() {
   const [sheet, setSheet] = useState<SheetState | null>(null);
   const [sheetKey, setSheetKey] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
+  const { wide } = useLayout();
+  const gridBtn = wide ? localStyles.gridBtnWide : localStyles.gridBtn;
 
   const open = (s: SheetState) => {
     setSheetKey(k => k + 1);
@@ -127,26 +131,26 @@ export function InventoryScreen() {
       <Notice text={flash} tone="good" />
       <View style={localStyles.grid}>
         <Button
-          style={localStyles.gridBtn}
+          style={gridBtn}
           label="Add stock"
           icon="＋"
           onPress={() => open({ kind: 'stock' })}
         />
         <Button
-          style={localStyles.gridBtn}
+          style={gridBtn}
           label="Record batch"
           icon="🥣"
           onPress={() => open({ kind: 'batch' })}
         />
         <Button
-          style={localStyles.gridBtn}
+          style={gridBtn}
           label="Find missing ingredients"
           icon="🔍"
           variant="secondary"
           onPress={() => open({ kind: 'shop' })}
         />
         <Button
-          style={localStyles.gridBtn}
+          style={gridBtn}
           label="Record ingredient waste"
           icon="🗑"
           variant="secondary"
@@ -155,7 +159,8 @@ export function InventoryScreen() {
       </View>
 
       <SectionTitle>Ingredients</SectionTitle>
-      {state.ingredients.map(ing => (
+      <Grid>
+        {state.ingredients.map(ing => (
         <IngredientCard
           key={ing.id}
           ingredient={ing}
@@ -164,7 +169,8 @@ export function InventoryScreen() {
             open({ kind: 'waste', ingredientId: ing.id, expired: true })
           }
         />
-      ))}
+        ))}
+      </Grid>
       <Body muted>
         Simplified tracking: each ingredient keeps one expiry date. When new
         stock is added to existing stock, the earlier date is kept so nothing
@@ -227,6 +233,7 @@ export function InventoryScreen() {
 const localStyles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridBtn: { flexGrow: 1, flexBasis: '45%' },
+  gridBtnWide: { flexGrow: 1, flexBasis: '22%' },
   between: { justifyContent: 'space-between' },
   name: { fontSize: 19 },
 });

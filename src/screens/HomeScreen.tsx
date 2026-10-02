@@ -5,8 +5,10 @@ import {
   Body,
   Button,
   Card,
+  Grid,
   Screen,
   SectionTitle,
+  useLayout,
 } from '../components/ui';
 import { bestSeller, expiringIngredientAdvice } from '../logic/insights';
 import {
@@ -47,8 +49,9 @@ function SummaryTile({
   detail: string;
   onPress: () => void;
 }) {
+  const { wide } = useLayout();
   return (
-    <View style={styles.tile}>
+    <View style={[styles.tile, wide && styles.tileWide]}>
       <Card style={styles.tileCard}>
         <Body muted>{label}</Body>
         <Body bold style={styles.tileValue}>
@@ -227,7 +230,8 @@ export function HomeScreen() {
           <Body>✓ All caught up. Nothing needs attention right now.</Body>
         </Card>
       ) : (
-        attention.map(a => (
+        <Grid>
+          {attention.map(a => (
           <Card key={a.id} tone={a.tone}>
             <Badge tone={a.tone} label={a.label} />
             <Body>{a.text}</Body>
@@ -237,7 +241,8 @@ export function HomeScreen() {
               onPress={() => nav.go(a.tab, a.intent)}
             />
           </Card>
-        ))
+          ))}
+        </Grid>
       )}
 
       <SectionTitle>Demo</SectionTitle>
@@ -253,6 +258,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 },
   tile: { width: '50%', padding: 5 },
+  tileWide: { width: '25%' },
   tileCard: { flex: 1, gap: 4 },
   tileValue: { fontSize: 26, color: colors.text },
   tileDetail: { minHeight: 40 },

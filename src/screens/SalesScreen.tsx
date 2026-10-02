@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Choices,
+  Columns,
   Field,
   Notice,
   Row,
@@ -317,6 +318,8 @@ export function SalesScreen() {
         options={days.map(d => ({ value: d, label: formatDayLabel(d, today) }))}
       />
 
+      <Columns>
+        <>
       <SectionTitle>Transactions · {formatDayLabel(day, today)}</SectionTitle>
       <Card>
         <Stat label="Money in (sales)" value={formatCents(moneyIn)} />
@@ -368,10 +371,13 @@ export function SalesScreen() {
           ))}
         </View>
       )}
-
+        </>
+        <>
       <SectionTitle>Closing · {formatDayLabel(day, today)}</SectionTitle>
       {closing ? <ClosingStatus closing={closing} /> : null}
       <ClosingForm key={`${day}-${closing?.closedAt ?? 'open'}`} day={day} saved={closing} />
+        </>
+      </Columns>
 
       <Sheet visible={wasteOpen} title="Record unsold treat waste" onClose={() => setWasteOpen(false)}>
         {wasteOpen ? (

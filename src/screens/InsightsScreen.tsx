@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   Choices,
+  Grid,
   Row,
   Screen,
   SectionTitle,
@@ -55,7 +56,8 @@ export function InsightsScreen() {
         <Stat label="Revenue" value={formatCents(totalRevenue)} strong />
       </Card>
 
-      {stats.map((s, i) => (
+      <Grid>
+        {stats.map((s, i) => (
         <Card key={s.treat.id}>
           <Row style={styles.between}>
             <Body bold style={styles.name}>
@@ -92,7 +94,8 @@ export function InsightsScreen() {
             value={`${s.wasted} (${formatCents(s.wasteCostCents)} cost)`}
           />
         </Card>
-      ))}
+        ))}
+      </Grid>
       <Body muted>
         Ingredient margin = revenue minus the ingredient and packaging cost of
         the servings sold (oldest batch first, using the cost recorded when
@@ -111,7 +114,8 @@ export function InsightsScreen() {
           <Body>Nothing stands out right now. Keep recording sales and batches.</Body>
         </Card>
       ) : (
-        advice.map(a => (
+        <Grid>
+          {advice.map(a => (
           <Card key={a.id} tone={a.kind === 'smaller' || a.kind === 'pricing' ? 'warn' : 'warm'}>
             <Badge
               tone={a.kind === 'larger' ? 'good' : a.kind === 'expiring' ? 'info' : 'warn'}
@@ -128,7 +132,8 @@ export function InsightsScreen() {
               />
             ) : null}
           </Card>
-        ))
+          ))}
+        </Grid>
       )}
     </Screen>
   );
