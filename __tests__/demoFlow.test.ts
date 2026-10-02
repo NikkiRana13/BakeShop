@@ -125,7 +125,15 @@ describe('demo flow', () => {
     const soldBefore = treatStats(s, s.treats[0], 'today', TODAY).unitsSold;
     const ingredientsSnapshot = JSON.stringify(s.ingredients);
     const later = new Date(NOW.getTime() + 60_000);
-    s = unwrap(sellTreat(s, 'apple', 3, 'cash', later));
+    s = unwrap(
+      sellTreat(s, {
+        treatId: 'apple',
+        quantity: 3,
+        payment: 'cash',
+        fulfilment: 'takeaway',
+        now: later,
+      }),
+    );
     expect(finishedStock(s, 'apple')).toBe(20);
     expect(JSON.stringify(s.ingredients)).toBe(ingredientsSnapshot);
 
@@ -136,7 +144,15 @@ describe('demo flow', () => {
     );
 
     // Overselling is blocked.
-    expect(sellTreat(s, 'apple', 999, 'card', later).ok).toBe(false);
+    expect(
+      sellTreat(s, {
+        treatId: 'apple',
+        quantity: 999,
+        payment: 'card',
+        fulfilment: 'takeaway',
+        now: later,
+      }).ok,
+    ).toBe(false);
 
     // 8/9. Closing.
     const totals = dayTotals(s, TODAY);

@@ -77,6 +77,27 @@ test('renders every tab and form without crashing', async () => {
   await pressByLabel(root, 'Record unsold treat waste');
   await pressByLabel(root, 'Close');
 
+  // First Nations relief: opening and confirming never saves a sale.
+  await pressByLabel(root, 'First Nations tax relief');
+  for (const text of [
+    "eligible for Ontario's First Nations point-of-sale",
+    'inspected an accepted status document',
+    'This purchase qualifies',
+  ]) {
+    await pressByLabel(root, text);
+  }
+  await pressByLabel(root, 'Apply relief to this sale');
+  expect(allText(root)).toContain('$6.50 + tax · 6 ready');
+  expect(allText(root)).toContain('First Nations rebate (Ontario)');
+  await pressByLabel(root, 'Save sale');
+  expect(allText(root)).toContain('$6.83 including tax');
+  // Eligibility resets after the sale.
+  expect(allText(root)).toContain('First Nations tax relief');
+  expect(allText(root)).not.toContain('Remove relief');
+
+  await pressByLabel(root, 'Tax summary');
+  expect(allText(root)).toContain('Net tax collected from customers');
+
   await pressByLabel(root, "What's Selling");
   expect(allText(root)).toContain('Ingredient margin');
   await ReactTestRenderer.act(async () => r.unmount());
@@ -84,6 +105,6 @@ test('renders every tab and form without crashing', async () => {
   // Restart: data comes back from storage, including the new sale.
   const r2 = await mount();
   await pressByLabel(r2.root, 'Sales');
-  expect(allText(r2.root)).toContain('$6.50 · 6 ready');
+  expect(allText(r2.root)).toContain('$6.50 + tax · 5 ready');
   await ReactTestRenderer.act(async () => r2.unmount());
 });

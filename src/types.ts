@@ -4,6 +4,8 @@
  * unit per ingredient: grams (g), millilitres (mL) or individual units.
  */
 
+import { Fulfilment, TaxProfile } from './logic/tax';
+
 export type BaseUnit = 'g' | 'mL' | 'unit';
 export type PackageUnit = BaseUnit | 'kg' | 'L';
 export type SalePayment = 'cash' | 'card';
@@ -40,6 +42,8 @@ export interface Treat {
   priceCents: number;
   packagingCostCents: number;
   recipe: RecipeLine[];
+  /** Explicit tax settings; never inferred from the name. */
+  tax: TaxProfile;
 }
 
 export interface ProductionBatch {
@@ -53,14 +57,52 @@ export interface ProductionBatch {
   totalCostCents: number;
 }
 
+/**
+ * A sale and the tax breakdown calculated when it was made. Stored values are
+ * never recalculated, so later setting changes do not alter history.
+ */
 export interface Sale {
   id: string;
   treatId: string;
   quantity: number;
   unitPriceCents: number;
+  /** Price before tax: this is the sales revenue. */
+  subtotalCents: number;
+  taxBeforeRebatesCents: number;
+  preparedFoodRebateCents: number;
+  firstNationsRebateCents: number;
+  taxChargedCents: number;
+  /** What the customer paid, including tax. */
   totalCents: number;
+  taxRule: string;
+  taxRulesVersion: string;
+  fulfilment: Fulfilment;
+  /** Links to the verification record when First Nations relief applied. */
+  reliefRecordId?: string;
   payment: SalePayment;
   dateTime: string;
+}
+
+export interface ReliefConfirmation {
+  eligibleIncludingResidency: boolean;
+  documentInspectedInPerson: boolean;
+  purchaseQualifies: boolean;
+}
+
+/**
+ * Verification record kept with a First Nations rebate sale. In this demo the
+ * purchaser and document details are fictional placeholders; real use needs
+ * the records Ontario requires. Never shown in analytics, ledgers or logs.
+ */
+export interface ReliefRecord {
+  id: string;
+  saleId: string;
+  recordedAt: string;
+  demo: true;
+  purchaserName: string;
+  documentType: string;
+  documentReference: string;
+  confirmations: ReliefConfirmation;
 }
 
 export interface TreatWaste {
@@ -88,6 +130,8 @@ export interface Expense {
   category: 'Ingredients';
   supplierName: string;
   ingredientId?: string;
+  /** Tax shown on the supplier receipt, only when explicitly recorded. */
+  taxPaidCents?: number;
 }
 
 export interface Supplier {
@@ -137,6 +181,7 @@ export interface AppState {
   ingredientWaste: IngredientWaste[];
   expenses: Expense[];
   closings: Closing[];
+  reliefRecords: ReliefRecord[];
 }
 
 export type Result = { ok: true; state: AppState } | { ok: false; error: string };

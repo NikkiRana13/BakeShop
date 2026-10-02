@@ -197,9 +197,9 @@ export function HomeScreen() {
           onPress={() => nav.go('inventory')}
         />
         <SummaryTile
-          label="Today's revenue"
+          label="Today's sales"
           value={formatCents(revenue)}
-          detail="From recorded sales"
+          detail="Before tax"
           onPress={() => nav.go('sales')}
         />
         <SummaryTile

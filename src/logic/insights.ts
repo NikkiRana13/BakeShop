@@ -4,6 +4,32 @@ import { ingredientStatus } from './selectors';
 
 export type Period = 'today' | 'week';
 
+/** Inclusive range of local dates (YYYY-MM-DD). */
+export interface DateRange {
+  from: string;
+  to: string;
+}
+
+export type RangeInput = Period | DateRange;
+
+/** Resolves a preset or custom range to [start, end) timestamps. */
+export function resolveRange(
+  input: RangeInput,
+  today: string,
+): { from: string; to: string; start: number; end: number } {
+  const r: DateRange =
+    input === 'today'
+      ? { from: today, to: today }
+      : input === 'week'
+      ? { from: addDays(today, -6), to: today }
+      : input;
+  return {
+    ...r,
+    start: startOfDay(r.from).getTime(),
+    end: startOfDay(addDays(r.to, 1)).getTime(),
+  };
+}
+
 export interface TreatStats {
   treat: Treat;
   unitsSold: number;
@@ -21,10 +47,6 @@ export interface TreatStats {
   wasteCostCents: number;
 }
 
-export function periodStart(period: Period, today: string): Date {
-  return startOfDay(period === 'today' ? today : addDays(today, -6));
-}
-
 type Event =
   | { kind: 0; time: number; qty: number; unitCost: number }
   | { kind: 1; time: number; qty: number; revenue: number }
@@ -37,11 +59,10 @@ type Event =
 export function treatStats(
   state: AppState,
   treat: Treat,
-  period: Period,
+  period: RangeInput,
   today: string = todayKey(),
 ): TreatStats {
-  const start = periodStart(period, today).getTime();
-  const end = startOfDay(addDays(today, 1)).getTime();
+  const { start, end } = resolveRange(period, today);
   const events: Event[] = [];
   for (const b of state.batches) {
     if (b.treatId === treat.id) {
@@ -59,7 +80,8 @@ export function treatStats(
         kind: 1,
         time: Date.parse(s.dateTime),
         qty: s.quantity,
-        revenue: s.totalCents,
+        // Revenue excludes sales tax.
+        revenue: s.subtotalCents,
       });
     }
   }
@@ -140,7 +162,7 @@ export function treatStats(
 
 export function allTreatStats(
   state: AppState,
-  period: Period,
+  period: RangeInput,
   today: string = todayKey(),
 ): TreatStats[] {
   return state.treats.map(t => treatStats(state, t, period, today));
@@ -218,7 +240,7 @@ export function expiringIngredientAdvice(
 
 export function salesAdvice(
   state: AppState,
-  period: Period,
+  period: RangeInput,
   today: string = todayKey(),
 ): Advice[] {
   const advice: Advice[] = [];
@@ -278,4 +300,59 @@ export function salesAdvice(
     }
   }
   return [...expiringIngredientAdvice(state, today), ...advice];
+}
+
+export interface TaxSummary {
+  salesBeforeTaxCents: number;
+  hstBeforeRebatesCents: number;
+  preparedFoodRebatesCents: number;
+  firstNationsRebatesCents: number;
+  netTaxCollectedCents: number;
+  customerPaymentsCents: number;
+  /** Only tax amounts explicitly recorded on supplier purchases. */
+  taxPaidOnPurchasesCents: number;
+  purchasesWithoutRecordedTax: number;
+}
+
+/** Sums the tax breakdowns saved with each sale; nothing is recalculated. */
+export function taxSummary(
+  state: AppState,
+  period: RangeInput,
+  today: string = todayKey(),
+): TaxSummary {
+  const { start, end } = resolveRange(period, today);
+  const inPeriod = (iso: string) => {
+    const t = Date.parse(iso);
+    return t >= start && t < end;
+  };
+  const sum: TaxSummary = {
+    salesBeforeTaxCents: 0,
+    hstBeforeRebatesCents: 0,
+    preparedFoodRebatesCents: 0,
+    firstNationsRebatesCents: 0,
+    netTaxCollectedCents: 0,
+    customerPaymentsCents: 0,
+    taxPaidOnPurchasesCents: 0,
+    purchasesWithoutRecordedTax: 0,
+  };
+  for (const s of state.sales) {
+    if (inPeriod(s.dateTime)) {
+      sum.salesBeforeTaxCents += s.subtotalCents;
+      sum.hstBeforeRebatesCents += s.taxBeforeRebatesCents;
+      sum.preparedFoodRebatesCents += s.preparedFoodRebateCents;
+      sum.firstNationsRebatesCents += s.firstNationsRebateCents;
+      sum.netTaxCollectedCents += s.taxChargedCents;
+      sum.customerPaymentsCents += s.totalCents;
+    }
+  }
+  for (const e of state.expenses) {
+    if (inPeriod(e.dateTime)) {
+      if (e.taxPaidCents === undefined) {
+        sum.purchasesWithoutRecordedTax += 1;
+      } else {
+        sum.taxPaidOnPurchasesCents += e.taxPaidCents;
+      }
+    }
+  }
+  return sum;
 }

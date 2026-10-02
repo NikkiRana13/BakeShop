@@ -2,10 +2,12 @@
  * Demo data, generated relative to the current local date on first launch.
  * Supplier names, products and prices are fictional demo data.
  */
-import { computeClosing } from '../logic/actions';
+import { computeClosing, DEMO_RELIEF_DOCUMENT } from '../logic/actions';
+import { calculateTax, Fulfilment, TaxProfile } from '../logic/tax';
 import {
   AppState,
   Ingredient,
+  ReliefRecord,
   ProductionBatch,
   Sale,
   SalePayment,
@@ -16,7 +18,8 @@ import {
 } from '../types';
 import { addDays, startOfDay, todayKey } from '../utils/format';
 
-export const STATE_VERSION = 1;
+// Bumped when the saved shape changes; older saved data is replaced by a fresh seed.
+export const STATE_VERSION = 2;
 export const DEFAULT_FLOAT_CENTS = 10000;
 
 const ingredients = (today: string): Ingredient[] => [
@@ -94,12 +97,26 @@ const ingredients = (today: string): Ingredient[] => [
   },
 ];
 
+/**
+ * Demo tax configuration for individual takeaway parfaits sold one serving
+ * at a time: taxable at 13%, counted toward the $4 prepared-food rebate, and
+ * eligible for the First Nations point-of-sale rebate. Set explicitly for the
+ * demo; confirm real classifications with an accountant. A product whose
+ * treatment is unclear should use taxClass 'needs_review' until checked.
+ */
+const PARFAIT_TAX: TaxProfile = {
+  taxClass: 'standard',
+  preparedFoodRebateEligible: true,
+  firstNationsRebateEligible: true,
+};
+
 const treats: Treat[] = [
   {
     id: 'apple',
     name: 'Apple Crumble Parfait',
     priceCents: 650,
     packagingCostCents: 35,
+    tax: PARFAIT_TAX,
     recipe: [
       { ingredientId: 'apples', quantity: 80 },
       { ingredientId: 'cream', quantity: 50 },
@@ -112,6 +129,7 @@ const treats: Treat[] = [
     name: 'Chocolate Parfait',
     priceCents: 700,
     packagingCostCents: 35,
+    tax: PARFAIT_TAX,
     recipe: [
       { ingredientId: 'chocolate', quantity: 30 },
       { ingredientId: 'cream', quantity: 60 },
@@ -124,6 +142,7 @@ const treats: Treat[] = [
     name: 'Pumpkin Parfait',
     priceCents: 675,
     packagingCostCents: 35,
+    tax: PARFAIT_TAX,
     recipe: [
       { ingredientId: 'pumpkin', quantity: 70 },
       { ingredientId: 'cream', quantity: 40 },
@@ -220,6 +239,7 @@ export function createSeedState(now: Date = new Date()): AppState {
   const batches: ProductionBatch[] = [];
   const sales: Sale[] = [];
   const treatWaste: TreatWaste[] = [];
+  const reliefRecords: ReliefRecord[] = [];
   let seq = 0;
   let payIdx = 0;
 
@@ -264,14 +284,62 @@ export function createSeedState(now: Date = new Date()): AppState {
         const time = isToday
           ? Math.max(prodTime, Math.min(todayBase + i * 12 * 60_000, now.getTime()))
           : at(day, 9) + i * 37 * 60_000;
+        // A few seeded sales show dine-in and verified First Nations relief.
+        const saleNo = sales.length;
+        const fulfilment: Fulfilment = saleNo % 9 === 4 ? 'dine_in' : 'takeaway';
+        const withRelief =
+          treat.id === 'apple' && i === 1 && (daysAgo === 2 || daysAgo === 4);
+        const tax = calculateTax({
+          lines: [
+            {
+              label: treat.name,
+              unitPriceCents: treat.priceCents,
+              quantity: qty,
+              ...treat.tax,
+            },
+          ],
+          fulfilment: withRelief ? 'takeaway' : fulfilment,
+          firstNationsVerified: withRelief,
+        });
+        if (!tax.ok) {
+          throw new Error(tax.error);
+        }
+        const b = tax.breakdown;
+        const saleId = `seed-sale-${seq++}`;
+        const dateTime = new Date(time).toISOString();
+        if (withRelief) {
+          reliefRecords.push({
+            id: `seed-relief-${seq++}`,
+            saleId,
+            recordedAt: dateTime,
+            demo: true,
+            ...DEMO_RELIEF_DOCUMENT,
+            confirmations: {
+              eligibleIncludingResidency: true,
+              documentInspectedInPerson: true,
+              purchaseQualifies: true,
+            },
+          });
+        }
         sales.push({
-          id: `seed-sale-${seq++}`,
+          id: saleId,
           treatId: treat.id,
           quantity: qty,
           unitPriceCents: treat.priceCents,
-          totalCents: treat.priceCents * qty,
+          subtotalCents: b.subtotalCents,
+          taxBeforeRebatesCents: b.taxBeforeRebatesCents,
+          preparedFoodRebateCents: b.preparedFoodRebateCents,
+          firstNationsRebateCents: b.firstNationsRebateCents,
+          taxChargedCents: b.taxChargedCents,
+          totalCents: b.totalCents,
+          taxRule: b.rule,
+          taxRulesVersion: b.rulesVersion,
+          fulfilment: withRelief ? 'takeaway' : fulfilment,
+          reliefRecordId: withRelief
+            ? reliefRecords[reliefRecords.length - 1].id
+            : undefined,
           payment: PAYMENT_PATTERN[payIdx++ % PAYMENT_PATTERN.length],
-          dateTime: new Date(time).toISOString(),
+          dateTime,
         });
       }
       if (wasted > 0) {
@@ -354,6 +422,8 @@ export function createSeedState(now: Date = new Date()): AppState {
         dateTime: expenseAt(0),
         description: 'Honey oat granola, 400 g ×2 — Corner Farm Market',
         amountCents: 950,
+        // Explicitly recorded from the (demo) receipt.
+        taxPaidCents: 0,
         payment: 'card',
         category: 'Ingredients',
         supplierName: 'Corner Farm Market',
@@ -361,6 +431,7 @@ export function createSeedState(now: Date = new Date()): AppState {
       },
     ],
     closings: [],
+    reliefRecords,
   };
 
   // Past days closed: matched, except yesterday's sample cash discrepancy.

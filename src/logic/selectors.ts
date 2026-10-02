@@ -1,4 +1,4 @@
-import { AppState, Ingredient, Treat } from '../types';
+import { AppState, Ingredient, Sale, Treat } from '../types';
 import { daysBetween, todayKey } from '../utils/format';
 
 export const EXPIRY_WINDOW_DAYS = 7;
@@ -127,8 +127,9 @@ export function salesOnDay(state: AppState, day: string) {
   return state.sales.filter(s => inDay(s.dateTime, day));
 }
 
+/** Sales revenue for the day, excluding sales tax. */
 export function revenueOnDay(state: AppState, day: string): number {
-  return salesOnDay(state, day).reduce((sum, s) => sum + s.totalCents, 0);
+  return salesOnDay(state, day).reduce((sum, s) => sum + s.subtotalCents, 0);
 }
 
 export interface DayTotals {
@@ -147,6 +148,7 @@ export function dayTotals(state: AppState, day: string): DayTotals {
     cardExpensesCents: 0,
     unpaidExpensesCents: 0,
   };
+  // Closing compares money actually taken, so sales include tax charged.
   for (const s of state.sales) {
     if (inDay(s.dateTime, day)) {
       if (s.payment === 'cash') {
@@ -178,12 +180,27 @@ export interface LedgerEntry {
   amountCents: number;
   payment: 'cash' | 'card' | 'unpaid';
   category: 'Sale' | 'Ingredients';
+  /** The sale itself, for receipt details. */
+  sale?: Sale;
 }
 
 export function ledgerForDay(state: AppState, day: string): LedgerEntry[] {
+  return ledgerForRange(state, day, day);
+}
+
+/** Ledger for an inclusive range of local dates, newest first. */
+export function ledgerForRange(
+  state: AppState,
+  from: string,
+  to: string,
+): LedgerEntry[] {
+  const inRange = (iso: string) => {
+    const d = todayKey(new Date(iso));
+    return d >= from && d <= to;
+  };
   const entries: LedgerEntry[] = [];
   for (const s of state.sales) {
-    if (inDay(s.dateTime, day)) {
+    if (inRange(s.dateTime)) {
       const treat = state.treats.find(t => t.id === s.treatId);
       entries.push({
         id: s.id,
@@ -192,11 +209,12 @@ export function ledgerForDay(state: AppState, day: string): LedgerEntry[] {
         amountCents: s.totalCents,
         payment: s.payment,
         category: 'Sale',
+        sale: s,
       });
     }
   }
   for (const e of state.expenses) {
-    if (inDay(e.dateTime, day)) {
+    if (inRange(e.dateTime)) {
       entries.push({
         id: e.id,
         dateTime: e.dateTime,

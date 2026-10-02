@@ -83,6 +83,7 @@ export function AddStockForm({
   );
   const [payment, setPayment] = useState<ExpensePayment>('card');
   const [supplier, setSupplier] = useState(prefill?.supplierName ?? '');
+  const [taxPaid, setTaxPaid] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const status = ingredientStatus(ingredient, today);
@@ -116,6 +117,10 @@ export function AddStockForm({
     if (!expiryValid) {
       return setError('Enter the expiry date as YYYY-MM-DD.');
     }
+    const t = taxPaid.trim() === '' ? undefined : parseDollars(taxPaid);
+    if (t === null) {
+      return setError('Enter the tax shown on the receipt, for example 0.59, or leave it blank.');
+    }
     const err = run(s =>
       addStock(s, {
         ingredientId,
@@ -125,6 +130,7 @@ export function AddStockForm({
         payment,
         supplierName: supplier,
         productName: prefill?.productName,
+        taxPaidCents: t,
       }),
     );
     if (err) {
@@ -172,6 +178,14 @@ export function AddStockForm({
         value={cost}
         onChangeText={setCost}
         placeholder="e.g. 4.50"
+      />
+      <Field
+        label="Tax shown on the receipt ($, optional)"
+        keyboardType="decimal-pad"
+        value={taxPaid}
+        onChangeText={setTaxPaid}
+        placeholder="Leave blank if not shown"
+        hint="Only what the receipt says. Many groceries have no tax."
       />
       <Field
         label="Expiry date (YYYY-MM-DD)"
@@ -524,7 +538,16 @@ export function ShoppingForm({
   const [treatId, setTreatId] = useState(initialTreatId ?? state.treats[0].id);
   const [servings, setServings] = useState(initialServings ?? 16);
   const [neededIn, setNeededIn] = useState('0');
-  const neededBy = addDays(today, Number(neededIn));
+  const [customDate, setCustomDate] = useState(addDays(today, 14));
+  const customValid =
+    parseDateKey(customDate.trim()) !== null &&
+    daysBetween(today, customDate.trim()) >= 0;
+  const neededBy =
+    neededIn === 'custom'
+      ? customValid
+        ? customDate.trim()
+        : today
+      : addDays(today, Number(neededIn));
   const plan = useMemo(
     () => planShopping(state, treatId, servings, neededBy, today),
     [state, treatId, servings, neededBy, today],
@@ -565,12 +588,30 @@ export function ShoppingForm({
         label="Needed by"
         value={neededIn}
         onChange={setNeededIn}
-        options={NEEDED_BY.map(n => ({
-          value: String(n.days),
-          label: n.label,
-          detail: formatDate(addDays(today, n.days)),
-        }))}
+        options={[
+          ...NEEDED_BY.map(n => ({
+            value: String(n.days),
+            label: n.label,
+            detail: formatDate(addDays(today, n.days)),
+          })),
+          { value: 'custom', label: 'Custom date' },
+        ]}
       />
+      {neededIn === 'custom' ? (
+        <Field
+          label="Needed by (YYYY-MM-DD)"
+          value={customDate}
+          onChangeText={setCustomDate}
+          autoCapitalize="none"
+          hint={customValid ? formatDate(customDate.trim()) : undefined}
+          error={
+            customValid
+              ? null
+              : 'Enter a date from today onward, e.g. ' + addDays(today, 14) +
+                '. Showing options for today until then.'
+          }
+        />
+      ) : null}
       {plan.everythingOnHand ? (
         <Card tone="good">
           <Body bold>✓ You have everything you need.</Body>

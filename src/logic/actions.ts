@@ -6,9 +6,11 @@ import {
   AppState,
   Closing,
   ExpensePayment,
+  ReliefConfirmation,
   Result,
   SalePayment,
 } from '../types';
+import { calculateTax, Fulfilment, TaxResult } from './tax';
 import { daysBetween, makeId, roundQty, todayKey } from '../utils/format';
 import {
   batchRequirements,
@@ -31,6 +33,8 @@ export interface AddStockInput {
   payment: ExpensePayment;
   supplierName: string;
   productName?: string;
+  /** Tax shown on the supplier receipt, if Grandma records it. */
+  taxPaidCents?: number;
   now?: Date;
 }
 
@@ -42,6 +46,14 @@ export function addStock(state: AppState, input: AddStockInput): Result {
   }
   if (!Number.isInteger(input.costCents) || input.costCents <= 0) {
     return fail('Enter what you paid, greater than $0.00.');
+  }
+  if (
+    input.taxPaidCents !== undefined &&
+    (!Number.isInteger(input.taxPaidCents) ||
+      input.taxPaidCents < 0 ||
+      input.taxPaidCents > input.costCents)
+  ) {
+    return fail('Tax paid must be between $0.00 and the total cost.');
   }
   if (daysBetween(today, input.expiryDate) < 0) {
     return fail('That expiry date has already passed.');
@@ -89,6 +101,9 @@ export function addStock(state: AppState, input: AddStockInput): Result {
         category: 'Ingredients',
         supplierName: supplier,
         ingredientId: ing.id,
+        ...(input.taxPaidCents !== undefined
+          ? { taxPaidCents: input.taxPaidCents }
+          : {}),
       },
     ],
   });
@@ -200,15 +215,67 @@ export function makeBatch(
   });
 }
 
-export function sellTreat(
+/**
+ * Fictional placeholder details for the demo verification record. A real
+ * rebate sale needs the purchaser and documentation records Ontario requires
+ * (see src/logic/tax.ts); ticking the confirmations alone is not enough.
+ */
+export const DEMO_RELIEF_DOCUMENT = {
+  purchaserName: 'Demo Purchaser (fictional)',
+  documentType: 'Status document — DEMO ONLY',
+  documentReference: 'DEMO-0000000000',
+};
+
+export function allConfirmed(c: ReliefConfirmation | null | undefined): boolean {
+  return (
+    !!c &&
+    c.eligibleIncludingResidency &&
+    c.documentInspectedInPerson &&
+    c.purchaseQualifies
+  );
+}
+
+/** Tax for one treat line, using the shared Ontario calculation. */
+export function previewSaleTax(
   state: AppState,
   treatId: string,
   quantity: number,
-  payment: SalePayment,
-  now: Date = new Date(),
-): Result {
+  fulfilment: Fulfilment,
+  firstNationsVerified: boolean,
+): TaxResult {
+  const treat = findTreat(state, treatId);
+  return calculateTax({
+    lines: [
+      {
+        label: treat.name,
+        unitPriceCents: treat.priceCents,
+        quantity,
+        ...treat.tax,
+      },
+    ],
+    fulfilment,
+    firstNationsVerified,
+  });
+}
+
+export interface SaleInput {
+  treatId: string;
+  quantity: number;
+  payment: SalePayment;
+  fulfilment: Fulfilment;
+  /** Completed First Nations relief confirmation, if staff verified one. */
+  firstNationsRelief?: ReliefConfirmation | null;
+  now?: Date;
+}
+
+export function sellTreat(state: AppState, input: SaleInput): Result {
+  const now = input.now ?? new Date();
+  const { treatId, quantity } = input;
   if (!Number.isInteger(quantity) || quantity <= 0) {
     return fail('Choose at least one treat.');
+  }
+  if (input.firstNationsRelief && !allConfirmed(input.firstNationsRelief)) {
+    return fail('All First Nations relief confirmations are required.');
   }
   const treat = findTreat(state, treatId);
   const stock = finishedStock(state, treatId);
@@ -219,20 +286,55 @@ export function sellTreat(
         : `Only ${stock} ${treat.name} servings are ready to sell.`,
     );
   }
+  const tax = previewSaleTax(
+    state,
+    treatId,
+    quantity,
+    input.fulfilment,
+    allConfirmed(input.firstNationsRelief),
+  );
+  if (!tax.ok) {
+    return fail(tax.error);
+  }
+  const b = tax.breakdown;
+  const saleId = makeId('sale');
+  const relief =
+    b.firstNationsRebateCents > 0 && input.firstNationsRelief
+      ? {
+          id: makeId('relief'),
+          saleId,
+          recordedAt: now.toISOString(),
+          demo: true as const,
+          ...DEMO_RELIEF_DOCUMENT,
+          confirmations: { ...input.firstNationsRelief },
+        }
+      : null;
   return ok({
     ...state,
     sales: [
       ...state.sales,
       {
-        id: makeId('sale'),
+        id: saleId,
         treatId,
         quantity,
         unitPriceCents: treat.priceCents,
-        totalCents: treat.priceCents * quantity,
-        payment,
+        subtotalCents: b.subtotalCents,
+        taxBeforeRebatesCents: b.taxBeforeRebatesCents,
+        preparedFoodRebateCents: b.preparedFoodRebateCents,
+        firstNationsRebateCents: b.firstNationsRebateCents,
+        taxChargedCents: b.taxChargedCents,
+        totalCents: b.totalCents,
+        taxRule: b.rule,
+        taxRulesVersion: b.rulesVersion,
+        fulfilment: input.fulfilment,
+        reliefRecordId: relief?.id,
+        payment: input.payment,
         dateTime: now.toISOString(),
       },
     ],
+    reliefRecords: relief
+      ? [...state.reliefRecords, relief]
+      : state.reliefRecords,
   });
 }
 

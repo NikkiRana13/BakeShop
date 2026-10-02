@@ -5,7 +5,6 @@ import {
   Body,
   Button,
   Card,
-  Choices,
   Grid,
   Row,
   Screen,
@@ -13,11 +12,12 @@ import {
   Stat,
 } from '../components/ui';
 import {
-  Advice,
-  allTreatStats,
-  Period,
-  salesAdvice,
-} from '../logic/insights';
+  DateRangePicker,
+  RangeChoice,
+  rangeLabel,
+  toRangeInput,
+} from '../components/DateRangePicker';
+import { Advice, allTreatStats, salesAdvice } from '../logic/insights';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
 import { formatCents, formatPercent, todayKey } from '../utils/format';
@@ -33,7 +33,8 @@ export function InsightsScreen() {
   const { state } = useStore();
   const nav = useNav();
   const today = todayKey();
-  const [period, setPeriod] = useState<Period>('week');
+  const [range, setRange] = useState<RangeChoice>({ kind: 'week' });
+  const period = toRangeInput(range);
   const stats = allTreatStats(state, period, today).sort(
     (a, b) => b.unitsSold - a.unitsSold || b.revenueCents - a.revenueCents,
   );
@@ -43,17 +44,11 @@ export function InsightsScreen() {
 
   return (
     <Screen title="What's Selling?" subtitle="How each treat is doing">
-      <Choices
-        value={period}
-        onChange={setPeriod}
-        options={[
-          { value: 'today', label: 'Today' },
-          { value: 'week', label: 'Last 7 days' },
-        ]}
-      />
+      <DateRangePicker value={range} onChange={setRange} />
       <Card tone="warm">
+        <Body bold>{rangeLabel(range)}</Body>
         <Stat label="Treats sold" value={String(totalUnits)} strong />
-        <Stat label="Revenue" value={formatCents(totalRevenue)} strong />
+        <Stat label="Revenue (before tax)" value={formatCents(totalRevenue)} strong />
       </Card>
 
       <Grid>
@@ -68,7 +63,7 @@ export function InsightsScreen() {
             ) : null}
           </Row>
           <Stat label="Units sold" value={String(s.unitsSold)} strong />
-          <Stat label="Revenue" value={formatCents(s.revenueCents)} />
+          <Stat label="Revenue (before tax)" value={formatCents(s.revenueCents)} />
           <Stat
             label="Avg ingredient + packaging cost / serving"
             value={
@@ -100,7 +95,7 @@ export function InsightsScreen() {
         Ingredient margin = revenue minus the ingredient and packaging cost of
         the servings sold (oldest batch first, using the cost recorded when
         each batch was made). It does not include labour, rent or other
-        overhead. Waste is shown separately and is not part of the margin.
+        overhead, and revenue never includes sales tax. Waste is shown separately and is not part of the margin.
         Sell-through = units sold ÷ (servings on hand at the start + servings
         made in the period).
       </Body>
