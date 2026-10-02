@@ -1,3 +1,23 @@
+# Grandma's Order Desk
+
+An inventory-first bakery assistant (React Native MVP): ingredients and expiry
+tracking, batch production, missing-ingredient supplier suggestions (fictional
+demo prices), quick sales, daily cash/card closing, and sales insights.
+
+- Four tabs: Home, Inventory, Sales, What's Selling (custom tab bar, no navigation library).
+- State: React context + pure transition functions in `src/logic/`, persisted with AsyncStorage.
+- Demo data is seeded on first launch relative to today; reset it from the Home tab.
+
+```sh
+npm install
+bundle install && cd ios && bundle exec pod install && cd ..   # iOS only; AsyncStorage is a native module
+npm start            # terminal 1
+npm run ios          # or: npm run android
+npm test && npx tsc --noEmit && npm run lint
+```
+
+---
+
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
