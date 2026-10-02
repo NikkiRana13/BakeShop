@@ -241,7 +241,7 @@ function ClosingForm({ day, saved }: { day: string; saved?: Closing }) {
         value={float}
         onChangeText={setFloat}
       />
-      <Stat label="Recorded cash expenses" value={`−${formatCents(totals.cashExpensesCents)}`} />
+      <Stat label="Recorded cash expenses" value={totals.cashExpensesCents > 0 ? `−${formatCents(totals.cashExpensesCents)}` : formatCents(0)} />
       <Stat label="Expected cash in drawer" value={formatCents(expectedDrawer)} strong />
       <Body muted>Opening float + cash sales − cash expenses</Body>
       <Field
@@ -320,7 +320,7 @@ export function SalesScreen() {
       <SectionTitle>Transactions · {formatDayLabel(day, today)}</SectionTitle>
       <Card>
         <Stat label="Money in (sales)" value={formatCents(moneyIn)} />
-        <Stat label="Money out (supplier expenses)" value={`−${formatCents(moneyOut)}`} />
+        <Stat label="Money out (supplier expenses)" value={moneyOut > 0 ? `−${formatCents(moneyOut)}` : formatCents(0)} />
         <Row>
           <Body muted>Day reconciliation:</Body>
           {closing ? (

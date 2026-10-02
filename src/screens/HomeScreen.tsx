@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 import {
   Badge,
   Body,
@@ -153,7 +153,21 @@ export function HomeScreen() {
     }
   }
 
-  const confirmReset = () =>
+  const confirmReset = () => {
+    if (Platform.OS === 'web') {
+      // Alert is a no-op on react-native-web.
+      const { confirm } = globalThis as unknown as {
+        confirm: (message: string) => boolean;
+      };
+      if (
+        confirm(
+          'Reset demo data? This erases everything recorded and restores the sample bakery data.',
+        )
+      ) {
+        resetDemo();
+      }
+      return;
+    }
     Alert.alert(
       'Reset demo data?',
       'This erases everything recorded and restores the sample bakery data.',
@@ -162,6 +176,7 @@ export function HomeScreen() {
         { text: 'Reset', style: 'destructive', onPress: resetDemo },
       ],
     );
+  };
 
   return (
     <Screen title="Grandma's Order Desk" subtitle="Good day! Here's your bakery at a glance.">

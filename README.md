@@ -5,14 +5,15 @@ tracking, batch production, missing-ingredient supplier suggestions (fictional
 demo prices), quick sales, daily cash/card closing, and sales insights.
 
 - Four tabs: Home, Inventory, Sales, What's Selling (custom tab bar, no navigation library).
-- State: React context + pure transition functions in `src/logic/`, persisted with AsyncStorage.
+- State: React context + pure transition functions in `src/logic/`, persisted with AsyncStorage (browser localStorage on the web).
 - Demo data is seeded on first launch relative to today; reset it from the Home tab.
+
+It's built to run as a website on computers and iPads (react-native-web + Vite).
 
 ```sh
 npm install
-bundle install && cd ios && bundle exec pod install && cd ..   # iOS only; AsyncStorage is a native module
-npm start            # terminal 1
-npm run ios          # or: npm run android
+npm run web          # dev server at http://127.0.0.1:5173
+npm run web:build    # static build in dist-web/
 npm test && npx tsc --noEmit && npm run lint
 ```
 
