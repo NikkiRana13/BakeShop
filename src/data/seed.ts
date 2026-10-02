@@ -6,6 +6,7 @@ import { computeClosing, DEMO_RELIEF_DOCUMENT } from '../logic/actions';
 import { calculateTax, Fulfilment, TaxProfile } from '../logic/tax';
 import {
   AppState,
+  BakeryProfile,
   Ingredient,
   ReliefRecord,
   ProductionBatch,
@@ -156,15 +157,42 @@ const treats: Treat[] = [
 ];
 
 const suppliers: Supplier[] = [
-  { id: 'maple', name: 'Maple Street Grocer', isLocal: true, deliveryFeeCents: 0 },
+  {
+    id: 'maple',
+    name: 'Maple Street Grocer',
+    isLocal: true,
+    deliveryFeeCents: 0,
+    phone: '555-0142',
+    email: 'hello@maplestreetgrocer.example',
+  },
   {
     id: 'valley',
     name: 'Valley Wholesale Foods',
     isLocal: false,
     deliveryFeeCents: 600,
+    phone: '555-0177',
+    website: 'https://valleywholesale.example',
   },
-  { id: 'farm', name: 'Corner Farm Market', isLocal: true, deliveryFeeCents: 0 },
+  {
+    id: 'farm',
+    name: 'Corner Farm Market',
+    isLocal: true,
+    deliveryFeeCents: 0,
+    phone: '555-0118',
+    email: 'orders@cornerfarm.example',
+  },
 ];
+
+/** Demo bakery details used to sign emails and centre vendor searches. */
+export const DEMO_PROFILE: BakeryProfile = {
+  ownerName: 'Grandma Rose',
+  bakeryName: "Grandma's Order Desk",
+  city: 'Waterloo, ON',
+  email: 'grandma@ordersdesk.example',
+  phone: '555-0100',
+  lat: 43.4643,
+  lng: -80.5204,
+};
 
 type OfferRow = [string, string, string, number, SupplierOffer['packageUnit'], number, boolean, number];
 // supplier, ingredient, product, size, unit, price (cents), in stock, lead days
@@ -232,6 +260,22 @@ const HISTORY: Record<string, [number, number, number][]> = {
     [6, 2, 0],
   ],
 };
+
+/**
+ * Fills in fields added after a state was saved, so older saved data loads
+ * with everything Grandma recorded instead of being replaced by demo data.
+ */
+export function withNewFieldDefaults(
+  saved: Omit<AppState, 'profile' | 'contacts' | 'research'> &
+    Partial<Pick<AppState, 'profile' | 'contacts' | 'research'>>,
+): AppState {
+  return {
+    ...saved,
+    profile: saved.profile ?? { ...DEMO_PROFILE },
+    contacts: saved.contacts ?? [],
+    research: saved.research ?? [],
+  };
+}
 
 const PAYMENT_PATTERN: SalePayment[] = ['card', 'cash', 'card', 'card', 'cash'];
 
@@ -435,6 +479,9 @@ export function createSeedState(now: Date = new Date()): AppState {
     ],
     closings: [],
     reliefRecords,
+    profile: { ...DEMO_PROFILE },
+    contacts: [],
+    research: [],
   };
 
   // Past days closed: matched, except yesterday's sample cash discrepancy.

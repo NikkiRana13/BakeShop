@@ -513,6 +513,9 @@ function OptionCard({
           : 'In-store pickup — no delivery fee.'}
       </Body>
       <Row>
+        {offer.source === 'quote' && offer.quotedOn ? (
+          <Badge tone="good" icon="✉" label={`Quoted ${formatDate(offer.quotedOn)}`} />
+        ) : null}
         {option.reasons.map(r => (
           <Badge key={r} tone="info" label={r} icon="★" />
         ))}

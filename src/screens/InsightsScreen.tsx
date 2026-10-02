@@ -12,6 +12,7 @@ import {
   Button,
   Card,
   Screen,
+  SectionTitle,
   Stat,
   Stepper,
 } from '../components/ui';
@@ -21,6 +22,7 @@ import {
   Recommendation,
   RecKind,
 } from '../logic/recommendations';
+import { costAdvice } from '../logic/vendors';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
 import { colors, radius } from '../theme';
@@ -195,6 +197,9 @@ export function InsightsScreen() {
     toRangeInput(range),
     today,
   );
+  const nav = useNav();
+  // Ingredient-level, so it sits apart from the per-treat decision cards.
+  const costTips = costAdvice(state, today);
 
   return (
     <Screen title="What's Selling?" subtitle="What to make next, and why">
@@ -213,6 +218,29 @@ export function InsightsScreen() {
           onToggle={() => setOpen(o => ({ ...o, [rec.id]: !o[rec.id] }))}
         />
       ))}
+      {costTips.length > 0 ? (
+        <>
+          <SectionTitle>Where your money goes</SectionTitle>
+          {costTips.map(tip => (
+            <Card key={tip.id} tone="warn">
+              <Badge tone="warn" icon="$" label="Biggest cost" />
+              <Body bold>{tip.title}</Body>
+              <Body>{tip.body}</Body>
+              <Button
+                label="See other options"
+                icon="🛒"
+                variant="secondary"
+                onPress={() =>
+                  nav.go('vendors', {
+                    kind: 'research',
+                    ingredientId: tip.ingredientId,
+                  })
+                }
+              />
+            </Card>
+          ))}
+        </>
+      ) : null}
       <Body muted>
         Suggestions are simple rules based on your records, not a forecast.
         Money figures exclude sales tax. Ingredient margin does not include

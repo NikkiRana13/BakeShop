@@ -2,3 +2,5 @@ dist-web/
 ios/Pods/
 ios/build/
 vendor/
+# Vendor-search server: separate Node project with its own tsconfig.
+server/

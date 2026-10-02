@@ -23,6 +23,7 @@ import { InsightsScreen } from './src/screens/InsightsScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SalesScreen } from './src/screens/SalesScreen';
 import { useLayout } from './src/components/ui';
+import { VendorsScreen } from './src/screens/VendorsScreen';
 import { StoreProvider } from './src/state/store';
 import { colors } from './src/theme';
 
@@ -31,6 +32,7 @@ const TABS: { name: TabName; label: string; icon: string }[] = [
   { name: 'inventory', label: 'Inventory', icon: '🧺' },
   { name: 'sales', label: 'Sales', icon: '💵' },
   { name: 'insights', label: "What's Selling", icon: '📈' },
+  { name: 'vendors', label: 'Vendors', icon: '🛒' },
 ];
 
 function App() {
@@ -119,6 +121,7 @@ function AppContent() {
           {tab === 'inventory' ? <InventoryScreen /> : null}
           {tab === 'sales' ? <SalesScreen /> : null}
           {tab === 'insights' ? <InsightsScreen /> : null}
+          {tab === 'vendors' ? <VendorsScreen /> : null}
         </View>
         {wide ? null : (
           <View

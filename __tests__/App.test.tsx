@@ -108,3 +108,68 @@ test('renders every tab and form without crashing', async () => {
   expect(allText(r2.root)).toContain('$6.50 + tax · 5 ready');
   await ReactTestRenderer.act(async () => r2.unmount());
 });
+
+const pressFirstByText = async (root: ReactTestInstance, label: string) => {
+  const target = root.findAll(
+    n =>
+      typeof n.props.onPress === 'function' &&
+      n.findAllByType(Text).some(t => {
+        const c = t.props.children;
+        return (Array.isArray(c) ? c.join('') : String(c)).includes(label);
+      }),
+  )[0];
+  await ReactTestRenderer.act(async () => {
+    target.props.onPress();
+  });
+};
+
+test('vendor search: cost tip → picks → email draft → reply → quote', async () => {
+  await AsyncStorage.clear();
+  const r = await mount();
+  const root = r.root;
+
+  // #1: What's Selling points at the biggest cost and links to vendor search.
+  await pressByLabel(root, "What's Selling");
+  expect(allText(root)).toContain('Yogurt is 33% of your ingredient spend');
+  await pressByLabel(root, 'See other options');
+
+  // The Vendors tab opens and searches for yogurt (sample data offline).
+  const text = allText(root);
+  expect(text).toContain('Types on the market');
+  expect(text).toContain('Greek yogurt');
+  expect(text).toContain('Sample results (no live search)');
+  expect(text).toContain('🌿 Local & natural');
+  expect(text).toContain('💰 Best for bulk');
+  expect(text).toContain('📍 Closest');
+  expect(text).toContain('Hillside Dairy & Market');
+  expect(text).toContain("Big chains don't answer price emails");
+
+  // Pick the local store and draft an email with real numbers (#3, #6).
+  await pressFirstByText(root, 'Select to email');
+  await pressByLabel(root, 'Draft emails (1)');
+  const draft = root.findAll(
+    n => n.props.accessibilityLabel === 'Message' && typeof n.props.value === 'string',
+  )[0];
+  expect(draft.props.value).toContain('I use about 21 kg of yogurt a week');
+  expect(draft.props.value).toContain('does the price change by season?');
+  await pressByLabel(root, 'Open in Mail');
+  await pressByLabel(root, 'Done');
+  expect(allText(root)).toContain('waiting for a reply');
+  expect(allText(root)).toContain('Your vendors');
+
+  // Paste the reply; it is read offline and shown as cost per treat (#2).
+  await pressByLabel(root, 'Add their reply');
+  await pressByLabel(root, 'Use the sample reply');
+  await pressByLabel(root, 'Read the price');
+  const reply = allText(root);
+  expect(reply).toContain('Hillside Dairy & Market quoted $19.00 for 5 kg');
+  expect(reply).toContain('Apple Crumble Parfait: $1.69 → $1.64 per treat');
+  expect(reply).toContain('Saves about $43/month at your usual volume');
+  await pressByLabel(root, 'Save quote');
+
+  const card = allText(root);
+  expect(card).toContain("Saved Hillside Dairy & Market's quote");
+  expect(card).toContain('Yogurt: $19.00 for 5 kg');
+  expect(card).toContain('🍂 Seasonal');
+  await ReactTestRenderer.act(async () => r.unmount());
+});

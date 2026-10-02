@@ -16,6 +16,7 @@ import {
   ingredientStatus,
   revenueOnDay,
 } from '../logic/selectors';
+import { followUpsDue } from '../logic/vendors';
 import { Intent, TabName, useNav } from '../navigation';
 import { useStore } from '../state/store';
 import { colors } from '../theme';
@@ -154,6 +155,17 @@ export function HomeScreen() {
         intent: { kind: 'closing', day: c.date },
       });
     }
+  }
+
+  for (const { contact, supplier } of followUpsDue(state, today)) {
+    attention.push({
+      id: `followup-${contact.id}`,
+      tone: 'warn',
+      label: 'No reply',
+      text: `No reply from ${supplier?.name ?? 'a vendor'} about ${contact.ingredientLabel.toLowerCase()} for a week. Send one gentle follow-up?`,
+      action: 'See vendors',
+      tab: 'vendors',
+    });
   }
 
   const confirmReset = () => {

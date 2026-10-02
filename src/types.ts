@@ -145,6 +145,14 @@ export interface Supplier {
   isLocal: boolean;
   /** 0 means in-store pickup with no delivery fee. */
   deliveryFeeCents: number;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  distanceKm?: number;
+  /** Google Places id when the supplier came from a vendor search. */
+  placeId?: string;
+  isChain?: boolean;
 }
 
 export interface SupplierOffer {
@@ -157,6 +165,92 @@ export interface SupplierOffer {
   priceCents: number;
   inStock: boolean;
   leadTimeDays: number;
+  /** 'quote' when the price came from a vendor's reply rather than a listing. */
+  source?: 'listed' | 'quote';
+  /** Date key the vendor quoted this price. */
+  quotedOn?: string;
+  /** Smallest order the vendor accepts, in the ingredient's base unit. */
+  minOrderQty?: number;
+  deliveryNote?: string;
+  /** What the vendor said about seasonal price changes, if anything. */
+  seasonalNote?: string;
+}
+
+// ------------------------------------------------------------ Vendor search
+
+export interface BakeryProfile {
+  ownerName: string;
+  bakeryName: string;
+  city: string;
+  email: string;
+  phone: string;
+  lat: number;
+  lng: number;
+}
+
+/** A nearby business returned by a vendor search (not yet a saved supplier). */
+export interface VendorLead {
+  placeId: string;
+  name: string;
+  address: string;
+  phone?: string;
+  website?: string;
+  email?: string;
+  distanceKm: number;
+  /** Google place types, e.g. 'grocery_store', 'supermarket', 'farm'. */
+  placeTypes: string[];
+  rating?: number;
+  reviewCount?: number;
+  openNow?: boolean;
+}
+
+export type VendorStrength = 'bulk' | 'local' | 'closest';
+
+/** One of the up-to-three suggestions shown to Grandma. Derived, never stored. */
+export interface VendorPick {
+  lead: VendorLead;
+  strength: VendorStrength;
+  isChain: boolean;
+  headline: string;
+  reasons: string[];
+  /** Chains don't answer price emails, so they get a price check instead. */
+  contact: 'email' | 'price_check';
+}
+
+export interface MarketSource {
+  title: string;
+  url: string;
+}
+
+/** One kind of product on the market, e.g. "Greek yogurt". */
+export interface MarketType {
+  name: string;
+  goodFor: string;
+  sources: MarketSource[];
+}
+
+export interface ResearchRun {
+  id: string;
+  query: string;
+  reason?: string;
+  /** The ingredient this would replace, or null for a brand-new ingredient. */
+  ingredientId: string | null;
+  ranAt: string;
+  /** False when the results are sample data rather than a live search. */
+  live: boolean;
+  types: MarketType[];
+  vendors: VendorLead[];
+}
+
+export interface VendorContact {
+  id: string;
+  supplierId: string;
+  ingredientId: string | null;
+  ingredientLabel: string;
+  sentOn: string;
+  followUpOn: string | null;
+  repliedOn: string | null;
+  status: 'sent' | 'replied' | 'no_reply';
 }
 
 export interface Closing {
@@ -187,6 +281,10 @@ export interface AppState {
   expenses: Expense[];
   closings: Closing[];
   reliefRecords: ReliefRecord[];
+  profile: BakeryProfile;
+  contacts: VendorContact[];
+  /** Most recent vendor searches, newest first (at most five). */
+  research: ResearchRun[];
 }
 
 export type Result = { ok: true; state: AppState } | { ok: false; error: string };

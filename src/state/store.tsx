@@ -8,7 +8,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { createSeedState, STATE_VERSION } from '../data/seed';
+import {
+  createSeedState,
+  STATE_VERSION,
+  withNewFieldDefaults,
+} from '../data/seed';
 import { AppState, Result } from '../types';
 
 const STORAGE_KEY = 'grandmas-order-desk/state';
@@ -43,7 +47,7 @@ export function StoreProvider({
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const parsed = raw ? (JSON.parse(raw) as AppState) : null;
         if (parsed && parsed.version === STATE_VERSION) {
-          loaded = parsed;
+          loaded = withNewFieldDefaults(parsed);
         }
       } catch {
         loaded = null;

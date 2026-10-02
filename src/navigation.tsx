@@ -1,12 +1,13 @@
 import { createContext, useContext } from 'react';
 
-export type TabName = 'home' | 'inventory' | 'sales' | 'insights';
+export type TabName = 'home' | 'inventory' | 'sales' | 'insights' | 'vendors';
 
 /** One-off requests passed along with a tab switch (e.g. open the batch form). */
 export type Intent =
   | { kind: 'batch'; treatId?: string; servings?: number }
   | { kind: 'shop'; treatId?: string; servings?: number }
-  | { kind: 'closing'; day: string };
+  | { kind: 'closing'; day: string }
+  | { kind: 'research'; ingredientId?: string; query?: string };
 
 export interface Nav {
   tab: TabName;
