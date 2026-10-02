@@ -1,140 +1,270 @@
 import React, { useState } from 'react';
-import { StyleSheet } from 'react-native';
-import {
-  Badge,
-  Body,
-  Button,
-  Card,
-  Grid,
-  Row,
-  Screen,
-  SectionTitle,
-  Stat,
-} from '../components/ui';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import {
   DateRangePicker,
   RangeChoice,
   rangeLabel,
   toRangeInput,
 } from '../components/DateRangePicker';
-import { Advice, allTreatStats, salesAdvice } from '../logic/insights';
+import {
+  Badge,
+  Body,
+  Button,
+  Card,
+  Screen,
+  Stat,
+  Stepper,
+} from '../components/ui';
+import { setBatchSize } from '../logic/actions';
+import {
+  buildRecommendations,
+  Recommendation,
+  RecKind,
+} from '../logic/recommendations';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
-import { formatCents, formatPercent, todayKey } from '../utils/format';
+import { colors, radius } from '../theme';
+import { todayKey } from '../utils/format';
 
-const ADVICE_BADGE: Record<Advice['kind'], { label: string; icon: string }> = {
-  larger: { label: 'Bigger batch?', icon: '▲' },
-  smaller: { label: 'Smaller batch?', icon: '▼' },
-  pricing: { label: 'Check pricing', icon: '$' },
-  expiring: { label: 'Use soon', icon: '⏰' },
+const TONE: Record<RecKind, 'plain' | 'warm' | 'good' | 'warn'> = {
+  reduce: 'warn',
+  expiring: 'warm',
+  increase: 'good',
+  buy_first: 'warn',
+  top: 'good',
+  review_costs: 'warn',
+  same: 'plain',
+  track: 'plain',
 };
+
+/** Large expand control. Points down to open, up to close; not a trend. */
+function Chevron({ expanded }: { expanded: boolean }) {
+  return (
+    <View style={styles.chevronBox}>
+      <View
+        style={[
+          styles.chevron,
+          { transform: [{ rotate: expanded ? '-135deg' : '45deg' }] },
+          expanded && styles.chevronUp,
+        ]}
+      />
+    </View>
+  );
+}
+
+function BatchSizeEditor({ rec }: { rec: Recommendation }) {
+  const { run } = useStore();
+  const [size, setSize] = useState(rec.treat.batchSize ?? 8);
+  const [message, setMessage] = useState<string | null>(null);
+  const save = (value: number | null) => {
+    const err = run(s => setBatchSize(s, rec.treat.id, value));
+    setMessage(
+      err ??
+        (value
+          ? `Saved: one batch makes ${value}.`
+          : 'Batch size cleared; suggestions will use servings.'),
+    );
+  };
+  return (
+    <View style={styles.editor}>
+      <Stepper
+        label={`Standard batch size for ${rec.treat.name}`}
+        value={size}
+        onChange={setSize}
+        max={500}
+        suffix="parfaits"
+      />
+      <View style={styles.editorButtons}>
+        <Button
+          label="Save batch size"
+          variant="secondary"
+          onPress={() => save(size)}
+        />
+        {rec.treat.batchSize ? (
+          <Button
+            label="Clear batch size"
+            variant="quiet"
+            onPress={() => save(null)}
+          />
+        ) : null}
+      </View>
+      {message ? <Body muted>{message}</Body> : null}
+    </View>
+  );
+}
+
+function RecommendationCard({
+  rec,
+  expanded,
+  onToggle,
+}: {
+  rec: Recommendation;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const nav = useNav();
+  const showMostSold =
+    rec.mostSold === 'tied' || (rec.mostSold === 'sole' && rec.kind !== 'top');
+  return (
+    <Card tone={TONE[rec.kind]} style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${expanded ? 'Show less' : 'See why'}: ${
+          rec.treat.name
+        }, ${rec.label}`}
+        accessibilityState={{ expanded }}
+        // react-native-web only exposes the expanded state via aria-expanded.
+        aria-expanded={expanded}
+        onPress={onToggle}
+        style={({ pressed }) => [styles.pressArea, pressed && styles.pressed]}>
+        <Text style={styles.treatName}>{rec.treat.name}</Text>
+        <Text style={styles.label}>{rec.label}</Text>
+        {showMostSold ? (
+          <Badge
+            tone="good"
+            icon="★"
+            label={rec.mostSold === 'tied' ? 'Most sold (tied)' : 'Most sold'}
+          />
+        ) : null}
+        <Text style={styles.explanation}>{rec.explanation}</Text>
+        {rec.stats.map(st => (
+          <Text key={st} style={styles.stat}>
+            {st}
+          </Text>
+        ))}
+        <View style={styles.expandRow}>
+          <Chevron expanded={expanded} />
+          <Text style={styles.expandText}>
+            {expanded ? 'Show less' : 'See why'}
+          </Text>
+        </View>
+      </Pressable>
+      {expanded ? (
+        <View style={styles.details}>
+          <Text style={styles.detailsTitle} accessibilityRole="header">
+            How we worked this out
+          </Text>
+          {rec.numbers.map(n => (
+            <Stat key={n.label} label={n.label} value={n.value} />
+          ))}
+          <View style={styles.workings}>
+            {rec.workings.map(w => (
+              <Text key={w} style={styles.working}>
+                • {w}
+              </Text>
+            ))}
+          </View>
+          {rec.kind === 'buy_first' ? (
+            <Button
+              label="Find missing ingredients"
+              onPress={() =>
+                nav.go('inventory', {
+                  kind: 'shop',
+                  treatId: rec.treat.id,
+                  servings: rec.servings,
+                })
+              }
+            />
+          ) : null}
+          {rec.kind === 'increase' || rec.kind === 'expiring' ? (
+            <Button
+              label="Plan a batch"
+              onPress={() =>
+                nav.go('inventory', {
+                  kind: 'batch',
+                  treatId: rec.treat.id,
+                  servings: rec.servings || undefined,
+                })
+              }
+            />
+          ) : null}
+          {rec.kind !== 'expiring' ? <BatchSizeEditor rec={rec} /> : null}
+        </View>
+      ) : null}
+    </Card>
+  );
+}
 
 export function InsightsScreen() {
   const { state } = useStore();
-  const nav = useNav();
   const today = todayKey();
   const [range, setRange] = useState<RangeChoice>({ kind: 'week' });
-  const period = toRangeInput(range);
-  const stats = allTreatStats(state, period, today).sort(
-    (a, b) => b.unitsSold - a.unitsSold || b.revenueCents - a.revenueCents,
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const { cards, basisNote } = buildRecommendations(
+    state,
+    toRangeInput(range),
+    today,
   );
-  const advice = salesAdvice(state, period, today);
-  const totalRevenue = stats.reduce((s, x) => s + x.revenueCents, 0);
-  const totalUnits = stats.reduce((s, x) => s + x.unitsSold, 0);
 
   return (
-    <Screen title="What's Selling?" subtitle="How each treat is doing">
+    <Screen title="What's Selling?" subtitle="What to make next, and why">
       <DateRangePicker value={range} onChange={setRange} />
-      <Card tone="warm">
-        <Body bold>{rangeLabel(range)}</Body>
-        <Stat label="Treats sold" value={String(totalUnits)} strong />
-        <Stat label="Revenue (before tax)" value={formatCents(totalRevenue)} strong />
-      </Card>
-
-      <Grid>
-        {stats.map((s, i) => (
-        <Card key={s.treat.id}>
-          <Row style={styles.between}>
-            <Body bold style={styles.name}>
-              {s.treat.name}
-            </Body>
-            {i === 0 && s.unitsSold > 0 ? (
-              <Badge tone="good" icon="★" label="Top seller" />
-            ) : null}
-          </Row>
-          <Stat label="Units sold" value={String(s.unitsSold)} strong />
-          <Stat label="Revenue (before tax)" value={formatCents(s.revenueCents)} />
-          <Stat
-            label="Avg ingredient + packaging cost / serving"
-            value={
-              s.avgCostPerServingCents === null
-                ? 'No sales yet'
-                : formatCents(s.avgCostPerServingCents)
-            }
-          />
-          <Stat
-            label="Ingredient margin"
-            value={
-              s.marginPct === null
-                ? '—'
-                : `${formatCents(s.marginCents)} (${formatPercent(s.marginPct)})`
-            }
-          />
-          <Stat
-            label={`Sell-through (${s.unitsSold} of ${s.available} available)`}
-            value={s.sellThrough === null ? 'None available' : formatPercent(s.sellThrough)}
-          />
-          <Stat
-            label="Finished treats wasted"
-            value={`${s.wasted} (${formatCents(s.wasteCostCents)} cost)`}
-          />
-        </Card>
-        ))}
-      </Grid>
-      <Body muted>
-        Ingredient margin = revenue minus the ingredient and packaging cost of
-        the servings sold (oldest batch first, using the cost recorded when
-        each batch was made). It does not include labour, rent or other
-        overhead, and revenue never includes sales tax. Waste is shown separately and is not part of the margin.
-        Sell-through = units sold ÷ (servings on hand at the start + servings
-        made in the period).
-      </Body>
-
-      <SectionTitle>Suggestions</SectionTitle>
-      <Body muted>
-        Simple rules based on your records — guidance, not a forecast.
-      </Body>
-      {advice.length === 0 ? (
+      <Text style={styles.period}>{rangeLabel(range)}</Text>
+      {basisNote ? (
         <Card>
-          <Body>Nothing stands out right now. Keep recording sales and batches.</Body>
+          <Body>ⓘ {basisNote}</Body>
         </Card>
-      ) : (
-        <Grid>
-          {advice.map(a => (
-          <Card key={a.id} tone={a.kind === 'smaller' || a.kind === 'pricing' ? 'warn' : 'warm'}>
-            <Badge
-              tone={a.kind === 'larger' ? 'good' : a.kind === 'expiring' ? 'info' : 'warn'}
-              icon={ADVICE_BADGE[a.kind].icon}
-              label={ADVICE_BADGE[a.kind].label}
-            />
-            <Body bold>{a.title}</Body>
-            <Body>{a.body}</Body>
-            {a.kind === 'expiring' || a.kind === 'larger' ? (
-              <Button
-                label="Plan a batch"
-                variant="secondary"
-                onPress={() => nav.go('inventory', { kind: 'batch', treatId: a.treatId })}
-              />
-            ) : null}
-          </Card>
-          ))}
-        </Grid>
-      )}
+      ) : null}
+      {cards.map(rec => (
+        <RecommendationCard
+          key={rec.id}
+          rec={rec}
+          expanded={!!open[rec.id]}
+          onToggle={() => setOpen(o => ({ ...o, [rec.id]: !o[rec.id] }))}
+        />
+      ))}
+      <Body muted>
+        Suggestions are simple rules based on your records, not a forecast.
+        Money figures exclude sales tax. Ingredient margin does not include
+        labour, rent or other overhead.
+      </Body>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  between: { justifyContent: 'space-between' },
-  name: { fontSize: 19, flexShrink: 1 },
+  period: { fontSize: 20, fontWeight: '700', color: colors.text },
+  card: { padding: 20, gap: 0 },
+  pressArea: { gap: 10, borderRadius: radius.md },
+  pressed: { opacity: 0.85 },
+  treatName: { fontSize: 20, fontWeight: '600', color: colors.muted },
+  label: { fontSize: 30, fontWeight: '800', color: colors.text, lineHeight: 36 },
+  explanation: { fontSize: 20, color: colors.text, lineHeight: 28 },
+  stat: { fontSize: 20, fontWeight: '700', color: colors.text },
+  expandRow: {
+    alignItems: 'center',
+    gap: 2,
+    paddingTop: 8,
+    minHeight: 72,
+    justifyContent: 'center',
+  },
+  chevronBox: {
+    width: 56,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chevron: {
+    width: 30,
+    height: 30,
+    borderRightWidth: 7,
+    borderBottomWidth: 7,
+    borderColor: colors.accent,
+    borderRadius: 3,
+    marginTop: -14,
+  },
+  chevronUp: { marginTop: 14 },
+  expandText: { fontSize: 19, fontWeight: '800', color: colors.accent },
+  details: {
+    gap: 10,
+    marginTop: 12,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  detailsTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
+  workings: { gap: 6, marginTop: 4 },
+  working: { fontSize: 18, color: colors.text, lineHeight: 26 },
+  editor: { gap: 8, marginTop: 8 },
+  editorButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
 });

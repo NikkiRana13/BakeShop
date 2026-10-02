@@ -117,6 +117,7 @@ const treats: Treat[] = [
     priceCents: 650,
     packagingCostCents: 35,
     tax: PARFAIT_TAX,
+    batchSize: 12,
     recipe: [
       { ingredientId: 'apples', quantity: 80 },
       { ingredientId: 'cream', quantity: 50 },
@@ -130,6 +131,7 @@ const treats: Treat[] = [
     priceCents: 700,
     packagingCostCents: 35,
     tax: PARFAIT_TAX,
+    batchSize: 10,
     recipe: [
       { ingredientId: 'chocolate', quantity: 30 },
       { ingredientId: 'cream', quantity: 60 },
@@ -143,6 +145,7 @@ const treats: Treat[] = [
     priceCents: 675,
     packagingCostCents: 35,
     tax: PARFAIT_TAX,
+    batchSize: 8,
     recipe: [
       { ingredientId: 'pumpkin', quantity: 70 },
       { ingredientId: 'cream', quantity: 40 },

@@ -44,6 +44,11 @@ export interface Treat {
   recipe: RecipeLine[];
   /** Explicit tax settings; never inferred from the name. */
   tax: TaxProfile;
+  /**
+   * Servings in one standard batch. When unset, production advice is given
+   * in servings instead of batches.
+   */
+  batchSize?: number;
 }
 
 export interface ProductionBatch {

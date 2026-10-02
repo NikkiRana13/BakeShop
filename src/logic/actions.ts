@@ -368,6 +368,24 @@ export function wasteTreat(
   });
 }
 
+/** Sets or clears (null) a treat's standard batch size. */
+export function setBatchSize(
+  state: AppState,
+  treatId: string,
+  size: number | null,
+): Result {
+  if (size !== null && (!Number.isInteger(size) || size < 1 || size > 500)) {
+    return fail('Batch size must be a whole number from 1 to 500.');
+  }
+  findTreat(state, treatId);
+  return ok({
+    ...state,
+    treats: state.treats.map(t =>
+      t.id === treatId ? { ...t, batchSize: size ?? undefined } : t,
+    ),
+  });
+}
+
 export function computeClosing(
   state: AppState,
   day: string,

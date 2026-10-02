@@ -187,11 +187,6 @@ export interface Advice {
   treatId?: string;
 }
 
-export const HIGH_SELL_THROUGH = 0.85;
-export const LOW_SELL_THROUGH = 0.6;
-export const HIGH_WASTE_SHARE = 0.2;
-export const LOW_MARGIN = 0.5;
-
 function expiryPhrase(ing: Ingredient, days: number): string {
   const verb = ing.plural ? 'expire' : 'expires';
   return `Your ${ing.name.toLowerCase()} ${verb} ${relativeDays(days)}`;
@@ -236,70 +231,6 @@ export function expiringIngredientAdvice(
     });
   }
   return advice;
-}
-
-export function salesAdvice(
-  state: AppState,
-  period: RangeInput,
-  today: string = todayKey(),
-): Advice[] {
-  const advice: Advice[] = [];
-  const stats = allTreatStats(state, period, today);
-  const maxSold = Math.max(0, ...stats.map(s => s.unitsSold));
-  for (const s of stats) {
-    const name = s.treat.name;
-    if (s.sellThrough === null) {
-      continue;
-    }
-    const wasteShare = s.available > 0 ? s.wasted / s.available : 0;
-    if (
-      s.sellThrough >= HIGH_SELL_THROUGH &&
-      s.marginPct !== null &&
-      s.marginPct > 0
-    ) {
-      advice.push({
-        id: `larger-${s.treat.id}`,
-        kind: 'larger',
-        treatId: s.treat.id,
-        title: `Consider a larger ${name} batch`,
-        body: `${Math.round(
-          s.sellThrough * 100,
-        )}% of available servings sold with a positive ingredient margin. A slightly bigger batch may meet demand.`,
-      });
-    } else if (
-      s.sellThrough < LOW_SELL_THROUGH ||
-      wasteShare >= HIGH_WASTE_SHARE
-    ) {
-      advice.push({
-        id: `smaller-${s.treat.id}`,
-        kind: 'smaller',
-        treatId: s.treat.id,
-        title: `Consider a smaller ${name} batch`,
-        body: `${Math.round(s.sellThrough * 100)}% sold and ${
-          s.wasted
-        } serving${
-          s.wasted === 1 ? '' : 's'
-        } wasted. A smaller batch may reduce waste.`,
-      });
-    }
-    if (
-      maxSold > 0 &&
-      s.unitsSold >= maxSold * 0.5 &&
-      s.marginPct !== null &&
-      s.marginPct < LOW_MARGIN
-    ) {
-      advice.push({
-        id: `pricing-${s.treat.id}`,
-        kind: 'pricing',
-        treatId: s.treat.id,
-        title: `Review ${name} costs or price`,
-        body: `It sells well, but the ingredient margin is only ${Math.round(
-          s.marginPct * 100,
-        )}%. Check ingredient costs or the selling price.`,
-      });
-    }
-  }
-  return [...expiringIngredientAdvice(state, today), ...advice];
 }
 
 export interface TaxSummary {

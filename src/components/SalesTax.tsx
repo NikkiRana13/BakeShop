@@ -156,6 +156,8 @@ export function TaxSummaryPanel() {
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
+        // react-native-web only exposes the expanded state via aria-expanded.
+        aria-expanded={open}
         onPress={() => setOpen(o => !o)}
         style={styles.toggle}>
         <Text style={styles.toggleText}>Tax summary</Text>
