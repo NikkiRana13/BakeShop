@@ -220,7 +220,7 @@ export function AddStockForm({
         ]}
       />
       <Notice text={error} />
-      <Button label="Save received stock" icon="＋" onPress={submit} />
+      <Button label="Save received stock" icon="plus" onPress={submit} />
     </>
   );
 }
@@ -444,7 +444,7 @@ export function BatchForm({
           <Notice text="Not enough usable stock for this batch. Buy the missing ingredients first or make fewer servings." />
           <Button
             label="Find missing ingredients"
-            icon="🔍"
+            icon="search"
             variant="secondary"
             onPress={() => onFindMissing(treatId, servings)}
           />
@@ -453,7 +453,7 @@ export function BatchForm({
       <Notice text={error} />
       <Button
         label={`Make ${servings} servings`}
-        icon="✓"
+        icon="check"
         onPress={submit}
         disabled={short}
         accessibilityHint="Deducts recipe ingredients and adds finished servings"
@@ -514,10 +514,10 @@ function OptionCard({
       </Body>
       <Row>
         {option.reasons.map(r => (
-          <Badge key={r} tone="info" label={r} icon="★" />
+          <Badge key={r} tone="info" label={r} icon="star" />
         ))}
       </Row>
-      <Button label="Add received stock" variant="secondary" icon="＋" onPress={onAdd} />
+      <Button label="Add received stock" variant="secondary" icon="plus" onPress={onAdd} />
     </View>
   );
 }

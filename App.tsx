@@ -1,5 +1,5 @@
 /**
- * Grandma's Order Desk — inventory-first bakery assistant.
+ * Pantry — inventory-first bakery assistant.
  *
  * @format
  */
@@ -17,20 +17,43 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { Icon, IconName, PantryLogo } from './src/components/Icon';
+import { useLayout } from './src/components/ui';
 import { Intent, Nav, NavContext, TabName } from './src/navigation';
 import { HomeScreen } from './src/screens/HomeScreen';
-import { InsightsScreen } from './src/screens/InsightsScreen';
 import { InventoryScreen } from './src/screens/InventoryScreen';
 import { SalesScreen } from './src/screens/SalesScreen';
-import { useLayout } from './src/components/ui';
 import { StoreProvider } from './src/state/store';
-import { colors } from './src/theme';
+import { colors, fontFamily } from './src/theme';
 
-const TABS: { name: TabName; label: string; icon: string }[] = [
-  { name: 'home', label: 'Home', icon: '🏠' },
-  { name: 'inventory', label: 'Inventory', icon: '🧺' },
-  { name: 'sales', label: 'Sales', icon: '💵' },
-  { name: 'insights', label: "What's Selling", icon: '📈' },
+const TABS: { name: TabName; label: string; icon: IconName }[] = [
+  { name: 'home', label: 'Home', icon: 'home' },
+  { name: 'inventory', label: 'Inventory', icon: 'jar' },
+  { name: 'sales', label: 'Sales', icon: 'receipt' },
+];
+
+const WEEKDAYS = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 function App() {
@@ -46,6 +69,41 @@ function App() {
         <AppContent />
       </StoreProvider>
     </SafeAreaProvider>
+  );
+}
+
+function NavItem({
+  tab,
+  selected,
+  wide,
+  onPress,
+}: {
+  tab: (typeof TABS)[number];
+  selected: boolean;
+  wide: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected }}
+      aria-current={selected ? 'page' : undefined}
+      accessibilityLabel={tab.label}
+      onPress={onPress}
+      style={[wide ? styles.sideItem : styles.tab, selected && styles.itemSelected]}>
+      <Icon
+        name={tab.icon}
+        size={34}
+        color={selected ? colors.white : colors.green}
+      />
+      <Text
+        style={[
+          wide ? styles.sideLabel : styles.tabLabel,
+          selected && styles.labelSelected,
+        ]}>
+        {tab.label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -68,63 +126,45 @@ function AppContent() {
     () => ({ tab, intent, go, clearIntent }),
     [tab, intent, go, clearIntent],
   );
+  const now = new Date();
+  const dateLabel = `${WEEKDAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
 
-  const tabButtons = TABS.map(t => {
-    const selected = t.name === tab;
-    return (
-      <Pressable
-        key={t.name}
-        accessibilityRole="tab"
-        accessibilityState={{ selected }}
-        accessibilityLabel={t.label}
-        onPress={() => setTab(t.name)}
-        style={[
-          styles.tab,
-          wide ? styles.tabWide : styles.tabNarrow,
-          selected && styles.tabSelected,
-        ]}>
-        <Text style={styles.tabIcon}>{t.icon}</Text>
-        <Text
-          style={[
-            styles.tabLabel,
-            wide && styles.tabLabelWide,
-            selected && styles.tabLabelSelected,
-          ]}
-          // One-line fitting is for the narrow bottom bar; on web it
-          // collapses the label's width inside the wide top bar.
-          numberOfLines={wide ? undefined : 1}
-          adjustsFontSizeToFit={!wide}>
-          {t.label}
-        </Text>
-      </Pressable>
-    );
-  });
+  const items = TABS.map(t => (
+    <NavItem
+      key={t.name}
+      tab={t}
+      wide={wide}
+      selected={t.name === tab}
+      onPress={() => setTab(t.name)}
+    />
+  ));
 
   return (
     <NavContext.Provider value={nav}>
-      <View style={styles.container}>
+      <View style={[styles.container, wide && styles.containerWide]}>
         {wide ? (
-          // Computers and iPads: top bar with the app name and large tabs.
           <View
-            style={[styles.topBar, { paddingTop: insets.top + 10 }]}
-            accessibilityRole="tablist">
-            <View style={styles.topBarInner}>
-              <Text style={styles.brand}>🧁 Grandma's Order Desk</Text>
-              <View style={styles.topTabs}>{tabButtons}</View>
+            accessibilityRole="tablist"
+            aria-label="Main"
+            style={[styles.sidebar, { paddingTop: insets.top + 40 }]}>
+            <View style={styles.brand}>
+              <PantryLogo size={64} />
+              <Text style={styles.wordmark}>Pantry</Text>
             </View>
+            <View style={styles.sideItems}>{items}</View>
+            <Text style={styles.date}>{dateLabel}</Text>
           </View>
         ) : null}
         <View style={styles.content}>
           {tab === 'home' ? <HomeScreen /> : null}
           {tab === 'inventory' ? <InventoryScreen /> : null}
           {tab === 'sales' ? <SalesScreen /> : null}
-          {tab === 'insights' ? <InsightsScreen /> : null}
         </View>
         {wide ? null : (
           <View
             style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 8) }]}
             accessibilityRole="tablist">
-            {tabButtons}
+            {items}
           </View>
         )}
       </View>
@@ -134,60 +174,84 @@ function AppContent() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flex: 1 },
+  containerWide: { flexDirection: 'row' },
+  content: { flex: 1, minWidth: 0 },
   loading: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
   },
+  sidebar: {
+    width: 300,
+    backgroundColor: colors.cream,
+    borderRightWidth: 2,
+    borderRightColor: colors.border,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    gap: 44,
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 8,
+  },
+  wordmark: {
+    fontFamily: fontFamily.display,
+    fontSize: 42,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  sideItems: { gap: 12 },
+  sideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+    minHeight: 72,
+    paddingHorizontal: 22,
+    borderRadius: 20,
+  },
+  sideLabel: {
+    fontFamily: fontFamily.body,
+    fontSize: 26,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  itemSelected: { backgroundColor: colors.accent },
+  labelSelected: { color: colors.white },
+  date: {
+    marginTop: 'auto',
+    paddingHorizontal: 8,
+    fontFamily: fontFamily.body,
+    fontSize: 24,
+    fontWeight: '500',
+    color: colors.muted,
+  },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderTopWidth: 1,
+    backgroundColor: colors.cream,
+    borderTopWidth: 2,
     borderTopColor: colors.border,
-    paddingTop: 6,
-    paddingHorizontal: 6,
-    gap: 4,
+    paddingTop: 8,
+    paddingHorizontal: 8,
+    gap: 6,
   },
   tab: {
-    minHeight: 58,
+    flex: 1,
+    minHeight: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    paddingVertical: 4,
+    borderRadius: 18,
+    paddingVertical: 6,
+    gap: 2,
   },
-  tabNarrow: { flex: 1 },
-  tabWide: {
-    flexDirection: 'row',
-    gap: 10,
-    minHeight: 60,
-    paddingHorizontal: 22,
+  tabLabel: {
+    fontFamily: fontFamily.body,
+    fontSize: 24,
+    fontWeight: '600',
+    color: colors.text,
   },
-  tabSelected: { backgroundColor: colors.accentSoft },
-  tabIcon: { fontSize: 22 },
-  tabLabel: { fontSize: 13, color: colors.muted, fontWeight: '600' },
-  tabLabelWide: { fontSize: 19 },
-  topBar: {
-    backgroundColor: colors.card,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingBottom: 10,
-  },
-  topBarInner: {
-    width: '100%',
-    maxWidth: 1240,
-    alignSelf: 'center',
-    paddingHorizontal: 32,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  brand: { fontSize: 22, fontWeight: '800', color: colors.text },
-  topTabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tabLabelSelected: { color: colors.accent, fontWeight: '800' },
 });
 
 export default App;

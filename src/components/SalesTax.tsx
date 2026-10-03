@@ -9,9 +9,10 @@ import {
   toRangeInput,
 } from './DateRangePicker';
 import { useStore } from '../state/store';
-import { colors, font, radius } from '../theme';
+import { colors, font, fontFamily, radius } from '../theme';
 import { ReliefConfirmation } from '../types';
 import { formatCents, todayKey } from '../utils/format';
+import { Icon } from './Icon';
 import { Badge, Body, Button, Card, Stat } from './ui';
 
 export interface BreakdownAmounts {
@@ -70,9 +71,14 @@ function Checkbox({
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
+      aria-checked={checked}
       onPress={onToggle}
       style={[styles.check, checked && styles.checkOn]}>
-      <Text style={styles.checkBox}>{checked ? '☑' : '☐'}</Text>
+      <View style={[styles.box, checked && styles.boxOn]}>
+        {checked ? (
+          <Icon name="check" size={28} color={colors.white} strokeWidth={3.2} />
+        ) : null}
+      </View>
       <Text style={styles.checkText}>{children}</Text>
     </Pressable>
   );
@@ -125,7 +131,7 @@ export function FirstNationsReliefForm({
         restaurant meal or catering).
       </Checkbox>
       <Card tone="warn">
-        <Badge tone="warn" label="Demo verification record" icon="!" />
+        <Badge tone="warn" label="Demo verification record" icon="alert" />
         <Stat label="Purchaser" value={DEMO_RELIEF_DOCUMENT.purchaserName} />
         <Stat label="Document" value={DEMO_RELIEF_DOCUMENT.documentType} />
         <Body muted>
@@ -136,7 +142,7 @@ export function FirstNationsReliefForm({
       </Card>
       <Button
         label="Apply relief to this sale"
-        icon="✓"
+        icon="check"
         onPress={() => onApply(c)}
         disabled={!allConfirmed(c)}
       />
@@ -152,7 +158,7 @@ export function TaxSummaryPanel() {
   const [range, setRange] = useState<RangeChoice>({ kind: 'today' });
   const t = taxSummary(state, toRangeInput(range), todayKey());
   return (
-    <Card>
+    <Card tone="warm" style={styles.panel}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
@@ -160,13 +166,20 @@ export function TaxSummaryPanel() {
         aria-expanded={open}
         onPress={() => setOpen(o => !o)}
         style={styles.toggle}>
-        <Text style={styles.toggleText}>Tax summary</Text>
-        <Text style={styles.toggleText}>{open ? '▾ Hide' : '▸ Show'}</Text>
+        <Text style={styles.toggleTitle}>Tax summary · {rangeLabel(range)}</Text>
+        <View style={styles.toggleRight}>
+          <Text style={styles.toggleText}>{open ? 'Hide' : 'Show'}</Text>
+          <Icon
+            name={open ? 'chevronUp' : 'chevronDown'}
+            size={34}
+            color={colors.accent}
+            strokeWidth={3}
+          />
+        </View>
       </Pressable>
       {open ? (
         <>
           <DateRangePicker value={range} onChange={setRange} />
-          <Body bold>{rangeLabel(range)}</Body>
           <Stat label="Sales before tax" value={formatCents(t.salesBeforeTaxCents)} />
           <Stat
             label="HST before point-of-sale rebates"
@@ -218,24 +231,55 @@ const styles = StyleSheet.create({
   breakdown: { gap: 2 },
   check: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     alignItems: 'flex-start',
-    minHeight: 56,
-    padding: 14,
-    borderRadius: radius.sm,
+    minHeight: 64,
+    padding: 18,
+    borderRadius: radius.md,
     borderWidth: 2,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    borderColor: colors.controlBorder,
+    backgroundColor: colors.white,
   },
-  checkOn: { borderColor: colors.green, backgroundColor: colors.greenSoft },
-  checkBox: { fontSize: 24, color: colors.text, lineHeight: 26 },
-  checkText: { flex: 1, fontSize: font.body, color: colors.text, lineHeight: 24 },
+  checkOn: { borderColor: colors.green },
+  box: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: colors.controlBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+  },
+  boxOn: { backgroundColor: colors.green, borderColor: colors.green },
+  checkText: {
+    flex: 1,
+    fontFamily: fontFamily.body,
+    fontSize: font.body,
+    color: colors.text,
+    lineHeight: 36,
+  },
+  panel: { paddingVertical: 12 },
   toggle: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 48,
+    gap: 16,
+    minHeight: 76,
   },
-  toggleText: { fontSize: font.heading, fontWeight: '700', color: colors.text },
-  divider: { height: 1, backgroundColor: colors.border, marginVertical: 6 },
+  toggleTitle: {
+    fontFamily: fontFamily.display,
+    fontSize: 34,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  toggleRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  toggleText: {
+    fontFamily: fontFamily.body,
+    fontSize: font.small,
+    fontWeight: '600',
+    color: colors.accent,
+  },
+  divider: { height: 2, backgroundColor: colors.divider, marginVertical: 6 },
 });

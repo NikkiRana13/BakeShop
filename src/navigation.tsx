@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-export type TabName = 'home' | 'inventory' | 'sales' | 'insights';
+export type TabName = 'home' | 'inventory' | 'sales';
 
 /** One-off requests passed along with a tab switch (e.g. open the batch form). */
 export type Intent =

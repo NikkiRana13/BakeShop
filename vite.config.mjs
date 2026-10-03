@@ -1,4 +1,5 @@
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 
 // Runs the React Native app in the browser through react-native-web.
@@ -14,7 +15,17 @@ const extensions = [
   '.jsx',
   '.json',
 ];
-const alias = [{ find: /^react-native$/, replacement: 'react-native-web' }];
+const assetsRegistryShim = fileURLToPath(
+  new URL('./web/assets-registry-shim.js', import.meta.url),
+);
+const alias = [
+  { find: /^react-native$/, replacement: 'react-native-web' },
+  // Not installed with React Native 0.87; react-native-svg only needs a stub.
+  {
+    find: /^@react-native\/assets-registry\/registry$/,
+    replacement: assetsRegistryShim,
+  },
+];
 
 export default defineConfig({
   root: 'web',
@@ -26,7 +37,15 @@ export default defineConfig({
   resolve: { alias, extensions },
   optimizeDeps: {
     // The pre-bundler needs the same web-first resolution as the app.
-    rolldownOptions: { resolve: { alias: { 'react-native': 'react-native-web' }, extensions } },
+    rolldownOptions: {
+      resolve: {
+        alias: {
+          'react-native': 'react-native-web',
+          '@react-native/assets-registry/registry': assetsRegistryShim,
+        },
+        extensions,
+      },
+    },
   },
   build: { outDir: '../dist-web', emptyOutDir: true },
   server: { port: 5173 },

@@ -1,10 +1,10 @@
-# Grandma's Order Desk
+# Pantry
 
-An inventory-first bakery assistant (React Native MVP): ingredients and expiry
+An accessible, inventory-first bakery assistant (React Native MVP, formerly "Grandma's Order Desk"): ingredients and expiry
 tracking, batch production, missing-ingredient supplier suggestions (fictional
 demo prices), quick sales, daily cash/card closing, and sales insights.
 
-- Four tabs: Home, Inventory, Sales, What's Selling (custom tab bar, no navigation library).
+- Three sections in a left sidebar: Home, Inventory, Sales (no navigation library). Design: white and #FFF9E1 surfaces, #AB4343 actions, #597549 good statuses, Inter text with Fredoka headings, nothing under 24 px.
 - State: React context + pure transition functions in `src/logic/`, persisted with AsyncStorage (browser localStorage on the web).
 - Demo data is seeded on first launch relative to today; reset it from the Home tab.
 

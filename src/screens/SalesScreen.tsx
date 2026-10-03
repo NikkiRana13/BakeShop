@@ -1,5 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import {
+  CustomRangeFields,
+  rangeLabel,
+} from '../components/DateRangePicker';
+import { Icon } from '../components/Icon';
+import {
+  BreakdownAmounts,
+  FirstNationsReliefForm,
+  TaxBreakdownView,
+  TaxSummaryPanel,
+} from '../components/SalesTax';
+import { TreatPerformance } from '../components/TreatPerformance';
 import {
   Badge,
   Body,
@@ -7,6 +19,7 @@ import {
   Card,
   Choices,
   Columns,
+  Disclosure,
   Field,
   Notice,
   Row,
@@ -16,6 +29,7 @@ import {
   Stat,
   Stepper,
 } from '../components/ui';
+import { DEFAULT_FLOAT_CENTS } from '../data/seed';
 import {
   closeDay,
   computeClosing,
@@ -23,28 +37,17 @@ import {
   sellTreat,
   wasteTreat,
 } from '../logic/actions';
-import { Fulfilment } from '../logic/tax';
-import {
-  BreakdownAmounts,
-  FirstNationsReliefForm,
-  TaxBreakdownView,
-  TaxSummaryPanel,
-} from '../components/SalesTax';
 import {
   dayTotals,
   finishedStock,
   LedgerEntry,
   ledgerForRange,
 } from '../logic/selectors';
-import {
-  CustomRangeFields,
-  rangeLabel,
-} from '../components/DateRangePicker';
-import { DEFAULT_FLOAT_CENTS } from '../data/seed';
+import { Fulfilment } from '../logic/tax';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
+import { colors, font, fontFamily, radius } from '../theme';
 import { Closing, ReliefConfirmation, SalePayment } from '../types';
-import { colors } from '../theme';
 import {
   addDays,
   centsToInput,
@@ -86,12 +89,15 @@ function QuickSale({ onDone }: { onDone: (m: string) => void }) {
   // Relief lives only in this form until the sale is saved.
   const [relief, setRelief] = useState<ReliefConfirmation | null>(null);
   const [reliefOpen, setReliefOpen] = useState(false);
+  const [wasteOpen, setWasteOpen] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState<string | null>(null);
   const treat = state.treats.find(t => t.id === treatId)!;
   const stock = finishedStock(state, treatId);
   const over = qty > stock;
   const tax = previewSaleTax(state, treatId, qty, fulfilment, relief !== null);
+  const b = tax.ok ? tax.breakdown : null;
+  const rebates = b ? b.preparedFoodRebateCents + b.firstNationsRebateCents : 0;
 
   const save = () => {
     if (!tax.ok) {
@@ -128,9 +134,13 @@ function QuickSale({ onDone }: { onDone: (m: string) => void }) {
   };
 
   return (
-    <Card>
+    <View style={styles.quick}>
+      <Text style={styles.h2} accessibilityRole="header">
+        Quick sale
+      </Text>
       <Choices
         label="Treat"
+        stacked
         value={treatId}
         onChange={id => {
           setTreatId(id);
@@ -140,15 +150,15 @@ function QuickSale({ onDone }: { onDone: (m: string) => void }) {
         options={state.treats.map(t => ({
           value: t.id,
           label: t.name,
-          detail: `${formatCents(t.priceCents)} + tax · ${finishedStock(
+          detail: `${formatCents(t.priceCents)} · ${finishedStock(
             state,
             t.id,
           )} ready`,
         }))}
       />
-      <Stepper label="Quantity" value={qty} onChange={setQty} max={99} />
+      <Stepper label="How many" value={qty} onChange={setQty} max={99} />
       <Choices
-        label="Fulfilment"
+        label="Where will they eat it?"
         value={fulfilment}
         onChange={setFulfilment}
         options={(['takeaway', 'dine_in', 'catering'] as Fulfilment[]).map(
@@ -165,51 +175,77 @@ function QuickSale({ onDone }: { onDone: (m: string) => void }) {
         ]}
       />
       {relief ? (
-        <Card tone="good">
-          <Badge
-            tone="good"
-            label="First Nations relief confirmed for this sale (demo record)"
-          />
+        <View style={styles.reliefOn}>
+          <Badge tone="good" label="First Nations relief confirmed (demo record)" />
           <Button
             label="Remove relief"
             variant="quiet"
             onPress={() => setRelief(null)}
           />
-        </Card>
+        </View>
       ) : (
         <Button
           label="First Nations tax relief"
-          variant="secondary"
+          variant="quiet"
           onPress={() => setReliefOpen(true)}
           accessibilityHint="Opens a confirmation form. Does not save the sale."
         />
       )}
-      {tax.ok ? (
-        <>
-          <TaxBreakdownView amounts={tax.breakdown} rule={tax.breakdown.rule} />
-          {tax.breakdown.notes.map(n => (
+      {b ? (
+        <View style={styles.totals}>
+          <Stat label="Price before tax" value={formatCents(b.subtotalCents)} />
+          <Stat
+            label={rebates > 0 ? 'HST before rebates' : 'HST (13%)'}
+            value={formatCents(b.taxBeforeRebatesCents)}
+          />
+          {b.preparedFoodRebateCents > 0 ? (
+            <Stat
+              label="Prepared-food rebate"
+              value={`−${formatCents(b.preparedFoodRebateCents)}`}
+            />
+          ) : null}
+          {b.firstNationsRebateCents > 0 ? (
+            <Stat
+              label="First Nations rebate"
+              value={`−${formatCents(b.firstNationsRebateCents)}`}
+            />
+          ) : null}
+          {rebates > 0 ? (
+            <Stat label="Tax charged" value={formatCents(b.taxChargedCents)} />
+          ) : null}
+          <View style={styles.rule} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatCents(b.totalCents)}</Text>
+          </View>
+          {b.notes.map(n => (
             <Body key={n} muted>
-              ⓘ {n}
+              {n}
             </Body>
           ))}
-        </>
+        </View>
       ) : (
-        <Notice text={tax.error} />
+        <Notice text={tax.ok ? null : tax.error} />
       )}
       {stock === 0 ? (
-        <Notice text={`No ${treat.name} ready. Record a batch on the Inventory tab first.`} />
+        <Notice text={`No ${treat.name} ready. Record a batch on the Inventory page first.`} />
       ) : over ? (
         <Notice text={`Only ${stock} ready to sell.`} />
       ) : null}
       <Notice text={error} />
       <Button
-        label="Save sale"
-        icon="✓"
+        label={b ? `Save sale · ${formatCents(b.totalCents)}` : 'Save sale'}
         onPress={save}
         disabled={over || stock === 0 || !tax.ok}
       />
+      <Button
+        label="Record unsold treat waste"
+        variant="quiet"
+        icon="trash"
+        onPress={() => setWasteOpen(true)}
+      />
       {receipt ? (
-        <Card tone="warm">
+        <Card>
           <Body bold>Receipt · {receipt.title}</Body>
           <Body muted>
             {FULFILMENT_LABEL[receipt.fulfilment]} · {PAYMENT_LABEL[receipt.payment]}
@@ -231,7 +267,20 @@ function QuickSale({ onDone }: { onDone: (m: string) => void }) {
           />
         ) : null}
       </Sheet>
-    </Card>
+      <Sheet
+        visible={wasteOpen}
+        title="Record unsold treat waste"
+        onClose={() => setWasteOpen(false)}>
+        {wasteOpen ? (
+          <TreatWasteForm
+            onDone={m => {
+              setWasteOpen(false);
+              onDone(m);
+            }}
+          />
+        ) : null}
+      </Sheet>
+    </View>
   );
 }
 
@@ -256,6 +305,7 @@ function TreatWasteForm({ onDone }: { onDone: (m: string) => void }) {
     <>
       <Choices
         label="Treat"
+        stacked
         value={treatId}
         onChange={id => {
           setTreatId(id);
@@ -269,7 +319,7 @@ function TreatWasteForm({ onDone }: { onDone: (m: string) => void }) {
         }))}
       />
       <Stepper
-        label="Servings wasted"
+        label="Servings thrown away"
         value={qty}
         onChange={setQty}
         max={Math.max(1, stock)}
@@ -287,6 +337,7 @@ function TreatWasteForm({ onDone }: { onDone: (m: string) => void }) {
       <Button
         label="Record waste"
         variant="danger"
+        icon="trash"
         onPress={save}
         disabled={stock === 0 || qty > stock}
       />
@@ -294,21 +345,25 @@ function TreatWasteForm({ onDone }: { onDone: (m: string) => void }) {
   );
 }
 
+function describeDiff(diff: number, what: string): string {
+  return Math.abs(diff) <= 1
+    ? `${what}: matched`
+    : `${what}: ${diff < 0 ? 'short' : 'over'} by ${formatCents(Math.abs(diff))}`;
+}
+
 function ClosingStatus({ closing }: { closing: Closing }) {
   const matched = closing.status === 'matched';
-  const describe = (diff: number, what: string) =>
-    Math.abs(diff) <= 1
-      ? `${what}: matched`
-      : `${what}: ${diff < 0 ? 'short' : 'over'} by ${formatCents(Math.abs(diff))}`;
   return (
     <Card tone={matched ? 'good' : 'bad'}>
       <Badge
         tone={matched ? 'good' : 'bad'}
         label={matched ? 'Matched' : 'Needs review'}
       />
-      <Body>{describe(closing.cashDiffCents, 'Cash drawer')}</Body>
-      <Body>{describe(closing.cardDiffCents, 'Card terminal')}</Body>
-      <Body muted>Closed {formatDate(closing.date)} at {formatTime(closing.closedAt)}</Body>
+      <Body>{describeDiff(closing.cashDiffCents, 'Cash drawer')}</Body>
+      <Body>{describeDiff(closing.cardDiffCents, 'Card machine')}</Body>
+      <Body muted>
+        Closed {formatDate(closing.date)} at {formatTime(closing.closedAt)}
+      </Body>
     </Card>
   );
 }
@@ -336,7 +391,7 @@ function ClosingForm({ day, saved }: { day: string; saved?: Closing }) {
 
   const submit = () => {
     if (floatCents === null || cashCents === null || terminalCents === null) {
-      return setError('Enter the opening float, cash counted and terminal total, e.g. 125.50.');
+      return setError('Enter the starting cash, cash counted and card machine total, e.g. 125.50.');
     }
     const err = run(s =>
       closeDay(s, computeClosing(s, day, floatCents, cashCents, terminalCents)),
@@ -345,34 +400,40 @@ function ClosingForm({ day, saved }: { day: string; saved?: Closing }) {
   };
 
   const diffText = (d: number) =>
-    `${d > 0 ? '+' : ''}${formatCents(d)}${Math.abs(d) <= 1 ? ' ✓' : ' !'}`;
+    Math.abs(d) <= 1 ? `${formatCents(d)} (matched)` : `${d > 0 ? '+' : ''}${formatCents(d)}`;
 
   return (
-    <Card>
-      <Badge tone="neutral" label="Daily aggregate reconciliation" icon="Σ" />
+    <>
+      <Badge tone="neutral" icon="receipt" label="Daily aggregate reconciliation" />
       <Body muted>
-        Compares the day's totals only. Individual transactions are not
-        independently verified.
+        This compares the day’s totals only. Each sale is not checked on its
+        own.
       </Body>
       <Stat
-        label="Expected cash sales (incl. tax charged)"
+        label="Cash sales, including tax"
         value={formatCents(totals.cashSalesCents)}
       />
       <Stat
-        label="Expected card sales (incl. tax charged)"
+        label="Card sales, including tax"
         value={formatCents(totals.cardSalesCents)}
       />
       <Field
-        label="Opening cash float ($)"
+        label="Starting cash in the drawer ($)"
         keyboardType="decimal-pad"
         value={float}
         onChangeText={setFloat}
       />
-      <Stat label="Recorded cash expenses" value={totals.cashExpensesCents > 0 ? `−${formatCents(totals.cashExpensesCents)}` : formatCents(0)} />
-      <Stat label="Expected cash in drawer" value={formatCents(expectedDrawer)} strong />
-      <Body muted>Opening float + cash sales − cash expenses</Body>
+      <Stat
+        label="Cash spent on supplies"
+        value={
+          totals.cashExpensesCents > 0
+            ? `−${formatCents(totals.cashExpensesCents)}`
+            : formatCents(0)
+        }
+      />
+      <Stat label="Cash drawer should have" value={formatCents(expectedDrawer)} strong />
       <Field
-        label="Actual cash counted ($)"
+        label="Cash you counted ($)"
         keyboardType="decimal-pad"
         value={cash}
         onChangeText={setCash}
@@ -384,7 +445,7 @@ function ClosingForm({ day, saved }: { day: string; saved?: Closing }) {
         value={terminal}
         onChangeText={setTerminal}
         placeholder={centsToInput(totals.cardSalesCents)}
-        hint="Use the terminal's gross sales total for the day, not the bank deposit."
+        hint="Use the card machine’s gross sales total for the day, not the bank deposit."
       />
       {preview ? (
         <>
@@ -394,13 +455,111 @@ function ClosingForm({ day, saved }: { day: string; saved?: Closing }) {
       ) : null}
       {totals.cardExpensesCents > 0 ? (
         <Body muted>
-          Supplier card payments ({formatCents(totals.cardExpensesCents)}) are
-          kept separate and are not part of the card terminal check.
+          Card payments to suppliers ({formatCents(totals.cardExpensesCents)})
+          are kept separate and are not part of the card machine check.
         </Body>
       ) : null}
       <Notice text={error} />
-      <Button label={saved ? 'Close day again' : 'Close day'} icon="🔒" onPress={submit} />
-    </Card>
+      <Button label={saved ? 'Close the day again' : 'Close the day'} onPress={submit} />
+    </>
+  );
+}
+
+/** Today's closing summary: what to expect, with the math behind a toggle. */
+function TodayClosing({
+  onClose,
+  onReview,
+}: {
+  onClose: (day: string) => void;
+  onReview: (day: string) => void;
+}) {
+  const { state } = useStore();
+  const today = todayKey();
+  const [math, setMath] = useState(false);
+  const saved = state.closings.find(c => c.date === today);
+  const totals = dayTotals(state, today);
+  const float = saved?.openingFloatCents ?? DEFAULT_FLOAT_CENTS;
+  const drawer = float + totals.cashSalesCents - totals.cashExpensesCents;
+  const yesterday = state.closings.find(
+    c => c.date === addDays(today, -1) && c.status === 'needs_review',
+  );
+  return (
+    <View style={styles.closing}>
+      <Text style={styles.h2} accessibilityRole="header">
+        Today’s closing
+      </Text>
+      {saved ? (
+        <Badge
+          tone={saved.status === 'matched' ? 'good' : 'bad'}
+          label={saved.status === 'matched' ? 'Matched' : 'Needs review'}
+        />
+      ) : (
+        <Badge tone="neutral" icon="circle" label="Not closed yet" />
+      )}
+      <View style={styles.bigStat}>
+        <Text style={styles.bigLabel}>Cash drawer should have</Text>
+        <Text style={styles.bigValue}>{formatCents(drawer)}</Text>
+      </View>
+      <View style={styles.bigStat}>
+        <Text style={styles.bigLabel}>Card machine should show</Text>
+        <Text style={styles.bigValue}>{formatCents(totals.cardSalesCents)}</Text>
+      </View>
+      {saved ? (
+        <>
+          <Body>{describeDiff(saved.cashDiffCents, 'Cash drawer')}</Body>
+          <Body>{describeDiff(saved.cardDiffCents, 'Card machine')}</Body>
+        </>
+      ) : (
+        <Body>Count the cash drawer, then enter what you find.</Body>
+      )}
+      <Button
+        label={saved ? 'Close the day again' : 'Close the day'}
+        onPress={() => onClose(today)}
+      />
+      <Disclosure
+        open={math}
+        onToggle={() => setMath(m => !m)}
+        openLabel="Hide the math"
+        closedLabel="See the math"
+      />
+      {math ? (
+        <View style={styles.math}>
+          <Body>
+            Starting cash {formatCents(float)} + cash sales{' '}
+            {formatCents(totals.cashSalesCents)} − cash spent{' '}
+            {formatCents(totals.cashExpensesCents)} ={' '}
+            <Text style={styles.strong}>{formatCents(drawer)}</Text>
+          </Body>
+          <Body>
+            Card sales including tax ={' '}
+            <Text style={styles.strong}>{formatCents(totals.cardSalesCents)}</Text>
+          </Body>
+          {totals.cardExpensesCents > 0 ? (
+            <Body>
+              Card payments to suppliers ({formatCents(totals.cardExpensesCents)})
+              are kept separate.
+            </Body>
+          ) : null}
+          <Body>This checks the day’s totals only, not each sale.</Body>
+        </View>
+      ) : null}
+      {yesterday ? (
+        <View style={styles.yesterday}>
+          <Icon name="alert" size={32} color={colors.accent} />
+          <View style={styles.yesterdayText}>
+            <Body>
+              <Text style={styles.strong}>Yesterday needs review.</Text>{' '}
+              {describeDiff(yesterday.cashDiffCents, 'Cash drawer')}.
+            </Body>
+            <Button
+              label="Review yesterday"
+              variant="quiet"
+              onPress={() => onReview(yesterday.date)}
+            />
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -428,27 +587,30 @@ function LedgerRow({
           <Row>
             <Badge
               tone={e.payment === 'unpaid' ? 'warn' : 'neutral'}
-              icon={e.payment === 'unpaid' ? '!' : e.payment === 'cash' ? '$' : '▭'}
+              icon={e.payment === 'unpaid' ? 'alert' : e.payment === 'cash' ? 'coins' : 'receipt'}
               label={PAYMENT_LABEL[e.payment]}
             />
             {sale && sale.firstNationsRebateCents > 0 ? (
-              <Badge tone="info" label="First Nations rebate" />
+              <Badge tone="info" icon="check" label="First Nations rebate" />
             ) : null}
           </Row>
         </View>
-        <Body
-          bold
-          style={[styles.amount, { color: e.amountCents < 0 ? colors.red : colors.green }]}>
+        <Text
+          style={[
+            styles.amount,
+            { color: e.amountCents < 0 ? colors.accent : colors.green },
+          ]}>
           {e.amountCents > 0 ? '+' : ''}
           {formatCents(e.amountCents)}
-        </Body>
+        </Text>
       </View>
       {sale ? (
         <>
-          <Button
-            label={open ? 'Hide sale details' : 'Sale details'}
-            variant="quiet"
-            onPress={() => setOpen(o => !o)}
+          <Disclosure
+            open={open}
+            onToggle={() => setOpen(o => !o)}
+            openLabel="Hide sale details"
+            closedLabel="Sale details"
           />
           {open ? (
             <>
@@ -464,31 +626,19 @@ function LedgerRow({
   );
 }
 
-export function SalesScreen() {
+/** Transactions for a day or range, plus each day's closing status. */
+function Transactions({ onClose }: { onClose: (day: string) => void }) {
   const { state } = useStore();
-  const nav = useNav();
   const today = todayKey();
   const [day, setDay] = useState(today);
-  // A custom range applies to the transaction list; closing stays per day.
+  // A custom range applies to the list; closing stays per day.
   const [custom, setCustom] = useState<{ from: string; to: string } | null>(
     null,
   );
-  const [flash, setFlash] = useState<string | null>(null);
-  const [wasteOpen, setWasteOpen] = useState(false);
-
-  useEffect(() => {
-    if (nav.intent?.kind === 'closing') {
-      setDay(nav.intent.day);
-      setCustom(null);
-      nav.clearIntent();
-    }
-  }, [nav]);
-
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, -i));
   const from = custom?.from ?? day;
   const to = custom?.to ?? day;
   const multiDay = from !== to;
-  // A custom range of one date behaves like picking that day.
   const closingDay = multiDay ? null : from;
   const periodLabel = custom
     ? rangeLabel({ kind: 'custom', from, to })
@@ -511,21 +661,9 @@ export function SalesScreen() {
   const moneyOut = ledger.filter(e => e.amountCents < 0).reduce((s, e) => s - e.amountCents, 0);
 
   return (
-    <Screen title="Sales & Closing" subtitle="Record sales, waste and close the day">
-      <Notice text={flash} tone="good" />
-      <SectionTitle>Quick sale</SectionTitle>
-      <QuickSale onDone={setFlash} />
-      <Button
-        label="Record unsold treat waste"
-        icon="🗑"
-        variant="secondary"
-        onPress={() => setWasteOpen(true)}
-      />
-
-      <TaxSummaryPanel />
-
-      <SectionTitle>Choose a day or range</SectionTitle>
+    <>
       <Choices
+        label="Choose a day or range"
         value={custom ? 'custom' : day}
         onChange={v => {
           if (v === 'custom') {
@@ -547,40 +685,45 @@ export function SalesScreen() {
           onChange={(f, t) => setCustom({ from: f, to: t })}
         />
       ) : null}
-
-      <Columns>
-        <>
-      <SectionTitle>Transactions · {periodLabel}</SectionTitle>
+      <Text style={styles.h3}>Transactions · {periodLabel}</Text>
       <Card>
-        <Stat label="Money in (sales incl. tax)" value={formatCents(moneyIn)} />
-        <Stat label="Money out (supplier expenses)" value={moneyOut > 0 ? `−${formatCents(moneyOut)}` : formatCents(0)} />
+        <Stat label="Money in (sales, including tax)" value={formatCents(moneyIn)} />
+        <Stat
+          label="Money out (supplier costs)"
+          value={moneyOut > 0 ? `−${formatCents(moneyOut)}` : formatCents(0)}
+        />
         {multiDay ? (
           <Row>
-            <Body muted>Closings in this range:</Body>
-            <Badge tone="good" label={`${matchedCount} matched`} />
+            <Badge tone="good" label={`${matchedCount} days matched`} />
             {reviewCount > 0 ? (
               <Badge tone="bad" label={`${reviewCount} need review`} />
             ) : null}
             {openCount > 0 ? (
-              <Badge tone="neutral" icon="○" label={`${openCount} not closed`} />
+              <Badge tone="neutral" icon="circle" label={`${openCount} not closed`} />
             ) : null}
           </Row>
         ) : (
-        <Row>
-          <Body muted>Day reconciliation:</Body>
-          {closing ? (
-            <Badge
-              tone={closing.status === 'matched' ? 'good' : 'bad'}
-              label={closing.status === 'matched' ? 'Matched' : 'Needs review'}
-            />
-          ) : (
-            <Badge tone="neutral" label="Not closed yet" icon="○" />
-          )}
-        </Row>
+          <Row>
+            {closing ? (
+              <Badge
+                tone={closing.status === 'matched' ? 'good' : 'bad'}
+                label={closing.status === 'matched' ? 'Closing matched' : 'Closing needs review'}
+              />
+            ) : (
+              <Badge tone="neutral" icon="circle" label="Not closed yet" />
+            )}
+            {closingDay ? (
+              <Button
+                label={closing ? 'See this closing' : 'Close this day'}
+                variant="secondary"
+                onPress={() => onClose(closingDay)}
+              />
+            ) : null}
+          </Row>
         )}
         <Body muted>
           Payment labels show how something was paid. They do not mean it has
-          been verified.
+          been checked.
         </Body>
       </Card>
       {ledger.length === 0 ? (
@@ -599,41 +742,73 @@ export function SalesScreen() {
           ))}
         </View>
       )}
-        </>
-        <>
-      {closingDay ? (
-        <>
-          <SectionTitle>Closing · {formatDayLabel(closingDay, today)}</SectionTitle>
-          {closing ? <ClosingStatus closing={closing} /> : null}
-          <ClosingForm
-            key={`${closingDay}-${closing?.closedAt ?? 'open'}`}
-            day={closingDay}
-            saved={closing}
-          />
-        </>
-      ) : (
-        <>
-          <SectionTitle>Closing</SectionTitle>
-          <Card>
-            <Body>
-              Closing reconciles one day's cash drawer and card terminal, so it
-              is done one day at a time. Pick a single day above, or set From
-              and To to the same date.
-            </Body>
-          </Card>
-        </>
-      )}
-        </>
+    </>
+  );
+}
+
+export function SalesScreen() {
+  const { state } = useStore();
+  const nav = useNav();
+  const today = todayKey();
+  const [flash, setFlash] = useState<string | null>(null);
+  const [closingDay, setClosingDay] = useState<string | null>(null);
+  const [txOpen, setTxOpen] = useState(false);
+
+  useEffect(() => {
+    if (nav.intent?.kind === 'closing') {
+      setClosingDay(nav.intent.day);
+      nav.clearIntent();
+    }
+  }, [nav]);
+
+  const sheetClosing = closingDay
+    ? state.closings.find(c => c.date === closingDay)
+    : undefined;
+
+  return (
+    <Screen
+      title="Sales"
+      subtitle="Sell a treat, close the day, and see what is working.">
+      <Notice text={flash} tone="good" />
+      <Columns weights={[1.2, 1]}>
+        <QuickSale onDone={setFlash} />
+        <TodayClosing onClose={setClosingDay} onReview={setClosingDay} />
       </Columns>
 
-      <Sheet visible={wasteOpen} title="Record unsold treat waste" onClose={() => setWasteOpen(false)}>
-        {wasteOpen ? (
-          <TreatWasteForm
-            onDone={m => {
-              setWasteOpen(false);
-              setFlash(m);
-            }}
+      <TaxSummaryPanel />
+
+      <TreatPerformance />
+
+      <View style={styles.txSection}>
+        <View style={styles.txHead}>
+          <SectionTitle>Transactions and past closings</SectionTitle>
+          <Disclosure
+            open={txOpen}
+            onToggle={() => setTxOpen(o => !o)}
+            openLabel="Hide"
+            closedLabel="Show"
           />
+        </View>
+        {txOpen ? <Transactions onClose={setClosingDay} /> : null}
+      </View>
+
+      <Sheet
+        visible={closingDay !== null}
+        title={
+          closingDay
+            ? `Closing · ${formatDayLabel(closingDay, today)}`
+            : 'Closing'
+        }
+        onClose={() => setClosingDay(null)}>
+        {closingDay ? (
+          <>
+            {sheetClosing ? <ClosingStatus closing={sheetClosing} /> : null}
+            <ClosingForm
+              key={`${closingDay}-${sheetClosing?.closedAt ?? 'open'}`}
+              day={closingDay}
+              saved={sheetClosing}
+            />
+          </>
         ) : null}
       </Sheet>
     </Screen>
@@ -641,18 +816,109 @@ export function SalesScreen() {
 }
 
 const styles = StyleSheet.create({
-  between: { justifyContent: 'space-between' },
-  total: { fontSize: 24 },
-  ledger: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 16,
+  h2: {
+    fontFamily: fontFamily.display,
+    fontSize: font.heading,
+    fontWeight: '600',
+    color: colors.text,
   },
-  ledgerRow: { paddingVertical: 14, gap: 8 },
-  ledgerTop: { flexDirection: 'row', gap: 12 },
-  ledgerDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  ledgerMain: { flex: 1, gap: 4 },
-  amount: { fontSize: 18, fontVariant: ['tabular-nums'] },
+  h3: {
+    fontFamily: fontFamily.display,
+    fontSize: font.subheading,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  strong: { fontWeight: '700' },
+  quick: {
+    backgroundColor: colors.cream,
+    borderRadius: radius.lg,
+    padding: 28,
+    gap: 22,
+  },
+  reliefOn: { gap: 8 },
+  totals: {
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    gap: 6,
+  },
+  rule: { height: 2, backgroundColor: colors.divider, marginVertical: 6 },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+  },
+  totalLabel: {
+    fontFamily: fontFamily.body,
+    fontSize: font.body,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  totalValue: {
+    fontFamily: fontFamily.body,
+    fontSize: 44,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  closing: {
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    padding: 28,
+    gap: 20,
+  },
+  bigStat: { gap: 4 },
+  bigLabel: {
+    fontFamily: fontFamily.body,
+    fontSize: font.small,
+    fontWeight: '500',
+    color: colors.muted,
+  },
+  bigValue: {
+    fontFamily: fontFamily.body,
+    fontSize: font.number,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  math: {
+    backgroundColor: colors.cream,
+    borderRadius: radius.md,
+    padding: 20,
+    gap: 10,
+  },
+  yesterday: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    borderTopWidth: 2,
+    borderTopColor: colors.divider,
+    paddingTop: 18,
+  },
+  yesterdayText: { flex: 1, gap: 4 },
+  txSection: { gap: 20 },
+  txHead: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  ledger: {
+    backgroundColor: colors.white,
+    borderRadius: radius.lg,
+    borderWidth: 2,
+    borderColor: colors.border,
+    paddingHorizontal: 24,
+  },
+  ledgerRow: { paddingVertical: 18, gap: 8 },
+  ledgerTop: { flexDirection: 'row', gap: 16 },
+  ledgerDivider: { borderTopWidth: 2, borderTopColor: colors.divider },
+  ledgerMain: { flex: 1, gap: 6 },
+  amount: {
+    fontFamily: fontFamily.body,
+    fontSize: 28,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
 });
