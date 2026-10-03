@@ -27,6 +27,7 @@ import { OfferOption, planShopping } from '../logic/shopping';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
 import { colors, font, fontFamily, radius } from '../theme';
+import { VendorsScreen } from './VendorsScreen';
 import { Ingredient } from '../types';
 import {
   daysBetween,
@@ -182,6 +183,8 @@ export function InventoryScreen() {
   const [sheetKey, setSheetKey] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [others, setOthers] = useState<Record<string, boolean>>({});
+  // Vendor search lives inside Inventory to keep three sections.
+  const [vendors, setVendors] = useState(false);
 
   const open = (s: SheetState) => {
     setSheetKey(k => k + 1);
@@ -194,7 +197,13 @@ export function InventoryScreen() {
 
   useEffect(() => {
     const intent = nav.intent;
+    if (intent?.kind === 'research') {
+      // VendorsScreen reads and clears the intent once it mounts.
+      setVendors(true);
+      return;
+    }
     if (intent && (intent.kind === 'batch' || intent.kind === 'shop')) {
+      setVendors(false);
       setSheetKey(k => k + 1);
       setSheet({
         kind: intent.kind,
@@ -220,6 +229,12 @@ export function InventoryScreen() {
     productName: `${o.offer.productName}${o.packages > 1 ? ` ×${o.packages}` : ''}`,
   });
   const missingCount = plan.lines.length;
+  const findVendors = (ingredientId?: string) =>
+    nav.go('inventory', { kind: 'research', ingredientId });
+
+  if (vendors) {
+    return <VendorsScreen onBack={() => setVendors(false)} />;
+  }
 
   return (
     <Screen title="Inventory" subtitle="What you have, and what to buy.">
@@ -343,6 +358,12 @@ export function InventoryScreen() {
                     />
                   ) : null}
                 </View>
+                <Button
+                  label={`Search more stores for ${line.ingredient.name.toLowerCase()}`}
+                  icon="search"
+                  variant="quiet"
+                  onPress={() => findVendors(line.ingredient.id)}
+                />
                 {line.alternative && others[line.ingredient.id] ? (
                   <View style={styles.alternative}>
                     <OptionDetails
@@ -377,14 +398,22 @@ export function InventoryScreen() {
             )}
           </View>
         ))}
-        <Button
-          label="Plan something else"
-          variant="secondary"
-          icon="search"
-          onPress={() =>
-            open({ kind: 'shop', treatId: planTreat.id, servings: PLAN_SERVINGS })
-          }
-        />
+        <View style={styles.inlineWrap}>
+          <Button
+            label="Plan something else"
+            variant="secondary"
+            icon="bowl"
+            onPress={() =>
+              open({ kind: 'shop', treatId: planTreat.id, servings: PLAN_SERVINGS })
+            }
+          />
+          <Button
+            label="Find other vendors"
+            variant="secondary"
+            icon="store"
+            onPress={() => findVendors()}
+          />
+        </View>
         <Body muted>
           Supplier prices are sample information, not live prices. Nothing is
           ordered for you.

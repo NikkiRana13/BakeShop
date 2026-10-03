@@ -44,6 +44,7 @@ import {
   ledgerForRange,
 } from '../logic/selectors';
 import { Fulfilment } from '../logic/tax';
+import { costAdvice } from '../logic/vendors';
 import { useNav } from '../navigation';
 import { useStore } from '../state/store';
 import { colors, font, fontFamily, radius } from '../theme';
@@ -626,6 +627,39 @@ function LedgerRow({
   );
 }
 
+/** Ingredients that take the biggest share of spending, with a way to shop around. */
+function CostTips() {
+  const { state } = useStore();
+  const nav = useNav();
+  const tips = costAdvice(state, todayKey());
+  if (tips.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.txSection}>
+      <SectionTitle>Where your money goes</SectionTitle>
+      {tips.map(tip => (
+        <Card key={tip.id} tone="warm">
+          <Badge tone="warn" icon="coins" label="Biggest cost" />
+          <Text style={styles.tipTitle}>{tip.title}</Text>
+          <Body>{tip.body}</Body>
+          <Button
+            label="See other options"
+            icon="store"
+            variant="secondary"
+            onPress={() =>
+              nav.go('inventory', {
+                kind: 'research',
+                ingredientId: tip.ingredientId,
+              })
+            }
+          />
+        </Card>
+      ))}
+    </View>
+  );
+}
+
 /** Transactions for a day or range, plus each day's closing status. */
 function Transactions({ onClose }: { onClose: (day: string) => void }) {
   const { state } = useStore();
@@ -779,6 +813,8 @@ export function SalesScreen() {
 
       <TreatPerformance />
 
+      <CostTips />
+
       <View style={styles.txSection}>
         <View style={styles.txHead}>
           <SectionTitle>Transactions and past closings</SectionTitle>
@@ -897,6 +933,12 @@ const styles = StyleSheet.create({
   },
   yesterdayText: { flex: 1, gap: 4 },
   txSection: { gap: 20 },
+  tipTitle: {
+    fontFamily: fontFamily.body,
+    fontSize: font.subheading,
+    fontWeight: '700',
+    color: colors.text,
+  },
   txHead: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -6,7 +6,8 @@ export type TabName = 'home' | 'inventory' | 'sales';
 export type Intent =
   | { kind: 'batch'; treatId?: string; servings?: number }
   | { kind: 'shop'; treatId?: string; servings?: number }
-  | { kind: 'closing'; day: string };
+  | { kind: 'closing'; day: string }
+  | { kind: 'research'; ingredientId?: string; query?: string };
 
 export interface Nav {
   tab: TabName;

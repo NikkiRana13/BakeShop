@@ -17,6 +17,38 @@ npm run web:build    # static build in dist-web/
 npm test && npx tsc --noEmit && npm run lint
 ```
 
+## Vendor search (in Inventory)
+
+Open it from **Find other vendors** in Inventory's Shopping help, or **See other
+options** on a "Biggest cost" tip in Sales. Type an ingredient to get:
+
+- **Types on the market**: 2–3 kinds and what people often say each is good
+  for, with sources (Claude + web search).
+- **Your picks near you**: up to three stores, each good at something
+  different: local & natural, best for bulk (chains get "check price online"
+  instead of an email), and closest (Google Places).
+- **Email drafts** with real weekly volume and a seasonal-price question,
+  opened in Grandma's own mail app. Paste a reply to save a dated quote, shown
+  as cost per treat and $/month.
+
+It works offline with fictional sample stores (marked "Sample"). For live
+results, run the small server in `server/`, which holds the API keys so they
+never ship inside the app:
+
+```sh
+cd server
+npm install
+cp .env.example .env   # add ANTHROPIC_API_KEY and GOOGLE_MAPS_API_KEY
+npm run dev            # http://127.0.0.1:8787
+```
+
+The app tries the server first (`src/services/config.ts`) and falls back to the
+sample data whenever it is off, slow or missing a key. The website calls the
+server on the same host it was opened from; the server only answers websites
+listed in `ALLOWED_ORIGINS` (default: the Pantry dev site on port 5173). On a physical phone, set
+`HOST=0.0.0.0` in `.env` and point `API_BASE_URL` at your computer's Wi-Fi
+address.
+
 ---
 
 This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).

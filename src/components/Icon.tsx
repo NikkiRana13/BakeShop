@@ -17,7 +17,14 @@ export type IconName =
   | 'circle'
   | 'chevronDown'
   | 'chevronUp'
-  | 'trash';
+  | 'chevronLeft'
+  | 'trash'
+  | 'mail'
+  | 'phone'
+  | 'inbox'
+  | 'store'
+  | 'leaf'
+  | 'pin';
 
 /** Lightly hand-drawn line icons with one consistent stroke. */
 export function Icon({
@@ -138,6 +145,60 @@ export function Icon({
       break;
     case 'chevronUp':
       body = <Path {...common} d="M8 19.5 16 11.5l8 8" />;
+      break;
+    case 'chevronLeft':
+      body = <Path {...common} d="M19.5 8 11.5 16l8 8" />;
+      break;
+    case 'mail':
+      body = (
+        <>
+          <Path
+            {...common}
+            d="M5.2 8.4h21.6c.7 0 1.2.5 1.2 1.2v12.8c0 .7-.5 1.2-1.2 1.2H5.2c-.7 0-1.2-.5-1.2-1.2V9.6c0-.7.5-1.2 1.2-1.2z"
+          />
+          <Path {...common} d="m4.6 9.4 11.4 8.8 11.4-8.8" />
+        </>
+      );
+      break;
+    case 'phone':
+      body = (
+        <Path
+          {...common}
+          d="M9.2 4.8 12.6 5l1.7 5.1-2.4 1.8c1.4 3.3 3.8 5.7 7.1 7.1l1.8-2.4 5.1 1.7.2 3.4c-.1 1.6-1.3 2.8-2.9 2.8C14.1 24.2 7.8 17.9 6.4 7.7c0-1.6 1.2-2.8 2.8-2.9z"
+        />
+      );
+      break;
+    case 'inbox':
+      body = (
+        <>
+          <Path {...common} d="M5 17.5h6.5l1.8 3.2h5.4l1.8-3.2H27" />
+          <Path {...common} d="M8.2 7.5h15.6L27 17.5v7.3c0 .7-.5 1.2-1.2 1.2H6.2c-.7 0-1.2-.5-1.2-1.2v-7.3z" />
+        </>
+      );
+      break;
+    case 'store':
+      body = (
+        <>
+          <Path {...common} d="M5.5 12.5 7.6 5.5h16.8l2.1 7c0 1.9-1.6 3.4-3.5 3.4s-3.5-1.5-3.5-3.4c0 1.9-1.6 3.4-3.5 3.4s-3.5-1.5-3.5-3.4c0 1.9-1.6 3.4-3.5 3.4s-3.5-1.5-3.5-3.4z" />
+          <Path {...common} d="M7.3 15.6v10.9h17.4V15.6M13.2 26.5v-6.4h5.6v6.4" />
+        </>
+      );
+      break;
+    case 'leaf':
+      body = (
+        <>
+          <Path {...common} d="M6.5 25.5C6 15.3 12.4 7.2 25.8 6.2c.9 12.9-6.4 19.9-17.3 19.3z" />
+          <Path {...common} d="M6.5 25.5c4-5.4 8.2-9.2 13.2-12" />
+        </>
+      );
+      break;
+    case 'pin':
+      body = (
+        <>
+          <Path {...common} d="M16 27.5s-8.5-7.7-8.5-14.2a8.5 8.5 0 0 1 17 0c0 6.5-8.5 14.2-8.5 14.2z" />
+          <Circle {...common} cx={16} cy={13.3} r={3.1} />
+        </>
+      );
       break;
     case 'trash':
       body = (

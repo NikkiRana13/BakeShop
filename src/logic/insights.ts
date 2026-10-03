@@ -181,10 +181,11 @@ export function bestSeller(
 
 export interface Advice {
   id: string;
-  kind: 'larger' | 'smaller' | 'pricing' | 'expiring';
+  kind: 'larger' | 'smaller' | 'pricing' | 'expiring' | 'cost';
   title: string;
   body: string;
   treatId?: string;
+  ingredientId?: string;
 }
 
 function expiryPhrase(ing: Ingredient, days: number): string {

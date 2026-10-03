@@ -513,6 +513,9 @@ function OptionCard({
           : 'In-store pickup — no delivery fee.'}
       </Body>
       <Row>
+        {offer.source === 'quote' && offer.quotedOn ? (
+          <Badge tone="good" icon="mail" label={`Quoted ${formatDate(offer.quotedOn)}`} />
+        ) : null}
         {option.reasons.map(r => (
           <Badge key={r} tone="info" label={r} icon="star" />
         ))}
@@ -614,7 +617,7 @@ export function ShoppingForm({
       ) : null}
       {plan.everythingOnHand ? (
         <Card tone="good">
-          <Body bold>✓ You have everything you need.</Body>
+          <Body bold>You have everything you need.</Body>
           <Body muted>
             Usable stock covers {servings} servings of{' '}
             {state.treats.find(t => t.id === treatId)?.name}.
